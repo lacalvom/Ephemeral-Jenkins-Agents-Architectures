@@ -1,0 +1,4 @@
+---
+jenkins_cli_jar: "/var/cache/jenkins-cli/jenkins-cli.jar"
+jenkins_cli_url: "http://127.0.0.1:{{ jenkins_http_port }}/jnlpJars/jenkins-cli.jar"
+jenkins_admin_token_id: "agent-bootstrap-token"

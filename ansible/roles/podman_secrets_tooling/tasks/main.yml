@@ -1,0 +1,411 @@
+---
+# =====================================================================
+# podman_secrets_tooling — tasks
+# =====================================================================
+# Integrado en el playbook principal (site.yml, Fase 5) desde ADR-013.
+# Ya no es un playbook aparte ni requiere tocar el inventario: cualquier
+# "ansible-playbook site.yml" (o "./deploy.sh") lo ejecuta con los tres
+# drivers (file, pass, shell) y crea secrets de ejemplo por defecto.
+#
+# Las variables enabled_drivers/create_example_secrets se fijan en el
+# play "Fase 5" de site.yml. Si quieres reejecutar SOLO este rol con
+# otra combinacion (por ejemplo, para depurar un driver concreto),
+# puedes seguir usando --tags o limitar con --limit, o sobreescribir
+# las variables con -e:
+#
+#   ansible-playbook site.yml --limit podman_hosts --tags never \
+#     -e "enabled_drivers=[file]" -e "create_example_secrets=true" \
+#     --start-at-task "podman_secrets_tooling | Instalar paquetes base"
+#
+# (mas simple en la practica: relanzar el site.yml completo, todas las
+# tareas son idempotentes).
+#
+# Todas las tareas de gestion de secrets corren como root (become: true
+# SIN become_user): ver ADR-005 (Podman Secrets a nivel de sistema).
+# =====================================================================
+
+# NOTA: las variables por defecto enabled_drivers y create_example_secrets
+# estan en defaults/main.yml para que el playbook las pueda sobreescribir
+# via -e "enabled_drivers=[file]" sin tocar el codigo.
+
+# Normalizar create_example_secrets a boolean (viene como string desde -e)
+- name: "podman_secrets_tooling | Convertir create_example_secrets a boolean"
+  ansible.builtin.set_fact:
+    create_example_secrets_bool: "{{ create_example_secrets | bool }}"
+
+# Normalizar enabled_drivers a lista. Acepta tanto una lista YAML nativa
+# (uso normal desde site.yml: enabled_drivers: [file, pass, shell]) como
+# un string al viejo estilo "-e enabled_drivers=[file,pass]" (uso manual
+# para depurar un driver concreto). IMPORTANTE: si enabled_drivers ya es
+# una lista, NO se puede pasar por regex_replace/split (Jinja la
+# convertiria a su repr de Python, ej. "['file', 'pass']", y el split
+# dejaria comillas sueltas en cada elemento -- esto rompia silenciosamente
+# TODOS los "when: 'file' in enabled_drivers_list" de mas abajo).
+- name: "podman_secrets_tooling | Normalizar enabled_drivers a lista"
+  ansible.builtin.set_fact:
+    enabled_drivers_list: >-
+      {{ enabled_drivers if (enabled_drivers is sequence and enabled_drivers is not string)
+         else (enabled_drivers | regex_replace('\[|\]', '') | split(',') | map('trim') | list) }}
+
+# --- Paquetes base (siempre) ---
+- name: "podman_secrets_tooling | Asegurar EPEL habilitado (para el paquete 'pass')"
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+
+- name: "podman_secrets_tooling | Instalar paquetes base"
+  ansible.builtin.dnf:
+    name:
+      - gnupg2
+      - pass
+      - jq
+      - tar
+      - gzip
+      - python3-podman
+      - haveged
+    state: present
+
+# =====================================================================
+# Entropia (evitar que "gpg --batch --generate-key" se cuelgue)
+# =====================================================================
+# En VMs KVM sin dispositivo virtio-rng, el pool de entropia del kernel
+# puede tardar mucho (o bloquearse indefinidamente) en inicializarse.
+# GnuPG generando una clave RSA es de las primeras operaciones que lo
+# necesita en este laboratorio, asi que es donde el sintoma aparece:
+# el playbook se queda "colgado" sin ningun error, en la tarea
+# "Generar clave GPG sin passphrase".
+#
+# haveged genera entropia de la nada (jitter de temporizacion de CPU),
+# sin depender de hardware RNG, por lo que soluciona el problema
+# independientemente de si el hipervisor expone virtio-rng o no. La
+# solucion "canonica" es anadir --rng al virt-install (ver deploy.sh),
+# pero esta capa adicional hace el rol robusto tambien fuera de este
+# laboratorio (ej. contenedores, otros hipervisores). Ver ADR-014.
+- name: "podman_secrets_tooling | Habilitar y arrancar haveged (entropia)"
+  ansible.builtin.systemd:
+    name: haveged
+    state: started
+    enabled: true
+  when: "'pass' in enabled_drivers_list"
+
+- name: "podman_secrets_tooling | Crear directorio temporal de staging"
+  ansible.builtin.file:
+    path: "{{ podman_secrets_tool_dir }}"
+    state: directory
+    mode: "0755"
+
+# =====================================================================
+# Instalacion de binarios (siempre, cuando se invoca el rol)
+# =====================================================================
+
+- name: "podman_secrets_tooling | Descargar tarball de age"
+  ansible.builtin.get_url:
+    url: "{{ age_tarball_url }}"
+    dest: "{{ podman_secrets_tool_dir }}/age.tar.gz"
+    mode: "0644"
+
+- name: "podman_secrets_tooling | Extraer binarios age/age-keygen"
+  ansible.builtin.unarchive:
+    src: "{{ podman_secrets_tool_dir }}/age.tar.gz"
+    dest: "{{ podman_secrets_tool_dir }}/"
+    remote_src: true
+    creates: "{{ podman_secrets_tool_dir }}/age/age"
+
+- name: "podman_secrets_tooling | Instalar age y age-keygen en {{ age_install_dir }}"
+  ansible.builtin.copy:
+    src: "{{ podman_secrets_tool_dir }}/age/{{ item }}"
+    dest: "{{ age_install_dir }}/{{ item }}"
+    owner: root
+    group: root
+    mode: "0755"
+    remote_src: true
+  loop:
+    - age
+    - age-keygen
+
+- name: "podman_secrets_tooling | Descargar binario sops"
+  ansible.builtin.get_url:
+    url: "{{ sops_binary_url }}"
+    dest: "{{ podman_secrets_tool_dir }}/sops"
+    mode: "0755"
+
+- name: "podman_secrets_tooling | Instalar sops en {{ sops_install_dir }}"
+  ansible.builtin.copy:
+    src: "{{ podman_secrets_tool_dir }}/sops"
+    dest: "{{ sops_install_dir }}/sops"
+    owner: root
+    group: root
+    mode: "0755"
+    remote_src: true
+
+- name: "podman_secrets_tooling | Limpiar staging"
+  ansible.builtin.file:
+    path: "{{ podman_secrets_tool_dir }}"
+    state: absent
+
+# =====================================================================
+# DRIVER: file (sin cifrado)
+# =====================================================================
+
+- name: "podman_secrets_tooling | DRIVER FILE | Crear secret '{{ example_secret_name_file }}' (texto plano)"
+  containers.podman.podman_secret:
+    name: "{{ example_secret_name_file }}"
+    data: "{{ example_secret_value }}"
+    driver: file
+    state: present
+    skip_existing: true
+  become: true
+  vars:
+    ansible_become_flags: "-n"
+  when: "'file' in enabled_drivers_list and create_example_secrets_bool"
+
+# =====================================================================
+# DRIVER: pass (cifrado GPG)
+# =====================================================================
+# IMPORTANTE sobre idempotencia: NO se usa "creates: /root/.gnupg/private-keys-v1.d"
+# como guarda para decidir si generar la clave. Ese directorio puede
+# existir SIN contener ninguna clave valida (por ejemplo, si una
+# generacion anterior se interrumpio/cancelo a mitad: gpg lo crea antes
+# de terminar). Con "creates:" el rol se saltaria la generacion para
+# siempre, y "pass" no podria cifrar nada ("no public key" / fallo
+# silencioso). En su lugar, se comprueba si hay una clave secreta real
+# (linea "sec:" en "gpg --list-secret-keys --with-colons") y solo se
+# genera si no existe ninguna.
+
+- name: "podman_secrets_tooling | DRIVER PASS | Comprobar si ya existe una clave secreta GPG"
+  ansible.builtin.command: "gpg --list-secret-keys --with-colons"
+  become: true
+  vars:
+    ansible_become_flags: "-n"
+  register: gpg_precheck
+  changed_when: false
+  failed_when: false
+  when: "'pass' in enabled_drivers_list"
+
+- name: "podman_secrets_tooling | DRIVER PASS | Crear archivo de parametros GPG"
+  ansible.builtin.copy:
+    dest: "/tmp/gpg-gen-params.conf"
+    content: |
+      %no-protection
+      Key-Type: {{ gpg_key_type }}
+      Key-Length: {{ gpg_key_length }}
+      Name-Real: {{ gpg_key_name_real }}
+      Name-Email: {{ gpg_key_email }}
+      Expire-Date: {{ gpg_key_expire }}
+      %commit
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - "'pass' in enabled_drivers_list"
+    - "'sec:' not in gpg_precheck.stdout"
+
+- name: "podman_secrets_tooling | DRIVER PASS | Generar clave GPG sin passphrase"
+  ansible.builtin.command: "timeout 120 gpg --batch --generate-key /tmp/gpg-gen-params.conf"
+  become: true
+  vars:
+    ansible_become_flags: "-n"
+  register: gpg_genkey_result
+  failed_when: false
+  when:
+    - "'pass' in enabled_drivers_list"
+    - "'sec:' not in gpg_precheck.stdout"
+
+- name: "podman_secrets_tooling | DRIVER PASS | Fallar con mensaje claro si la generacion de clave GPG fallo"
+  ansible.builtin.fail:
+    msg: >-
+      "gpg --batch --generate-key" fallo (rc={{ gpg_genkey_result.rc }}).
+      {% if gpg_genkey_result.rc == 124 %}
+      Probable falta de entropia en la VM (timeout de 120s agotado).
+      Revisa que haveged este activo ('systemctl status haveged') y que
+      la VM tenga un dispositivo virtio-rng
+      ('cat /proc/sys/kernel/random/entropy_avail' deberia subir rapido;
+      --rng en virt-install, ver deploy.sh y ADR-014).
+      {% else %}
+      stderr: {{ gpg_genkey_result.stderr | default('(vacio)') }}
+      {% endif %}
+  when:
+    - "'pass' in enabled_drivers_list"
+    - "'sec:' not in gpg_precheck.stdout"
+    - gpg_genkey_result is defined
+    - gpg_genkey_result.rc is defined
+    - gpg_genkey_result.rc != 0
+
+- name: "podman_secrets_tooling | DRIVER PASS | Obtener listado de claves secretas"
+  ansible.builtin.command: "gpg --list-secret-keys --with-colons"
+  become: true
+  vars:
+    ansible_become_flags: "-n"
+  register: gpg_list_raw
+  changed_when: false
+  when: "'pass' in enabled_drivers_list"
+
+# El formato "--with-colons" de GPG para un registro "fpr" es
+# "fpr:::::::::FINGERPRINT:" -- el fingerprint es el CAMPO 10 (indice 9
+# tras split(':')), no "lo que sigue a fpr:". La extraccion anterior
+# usaba regex_replace('^fpr:([^:]+):.*', '\\1'), que asume que el
+# fingerprint es el campo 2; como el campo 2 esta vacio, la regex nunca
+# hacia match y regex_replace devolvia la linea ORIGINAL sin tocar
+# (comportamiento estandar cuando no hay match). El resultado
+# ("fpr:::::::::FINGERPRINT:" completo, con "fpr:" y los dos puntos
+# incluidos) se pasaba a "pass init" como si fuera el ID de la clave,
+# y ese "ID" no existe en el llavero -> "No public key" al cifrar. Esto
+# NO era una limitacion real de TTY/pinentry (la clave no tiene
+# passphrase, no deberia pedir nada); era este bug. Ver ADR-015.
+- name: "podman_secrets_tooling | DRIVER PASS | Extraer GPG ID del fingerprint (campo 10, no regex)"
+  ansible.builtin.set_fact:
+    gpg_key_id: "{{ (gpg_list_raw.stdout_lines | select('match', '^fpr:') | list | first).split(':')[9] }}"
+  when: "'pass' in enabled_drivers_list"
+
+# Sin "creates:": se re-ejecuta siempre para garantizar que el almacen
+# 'pass' apunta a la clave GPG vigente (aunque el directorio
+# ~/.password-store ya exista de una ejecucion anterior).
+- name: "podman_secrets_tooling | DRIVER PASS | Inicializar/actualizar pass store"
+  ansible.builtin.command: "pass init {{ gpg_key_id }}"
+  become: true
+  vars:
+    ansible_become_flags: "-n"
+  when: "'pass' in enabled_drivers_list"
+
+- name: "podman_secrets_tooling | DRIVER PASS | Crear secret '{{ example_secret_name_pass }}' cifrado con GPG"
+  containers.podman.podman_secret:
+    name: "{{ example_secret_name_pass }}"
+    data: "{{ example_secret_value }}"
+    driver: pass
+    state: present
+    skip_existing: true
+  become: true
+  vars:
+    ansible_become_flags: "-n"
+  register: pass_secret_result
+  # ignore_errors (no failed_when:false): conserva "failed: true" en el
+  # resultado registrado, para que el aviso de mas abajo SI se muestre
+  # si algo falla (con failed_when:false, "is failed" siempre es false y
+  # el fallo pasaba totalmente desapercibido).
+  ignore_errors: true
+  when: "'pass' in enabled_drivers_list and create_example_secrets_bool"
+
+- name: "podman_secrets_tooling | DRIVER PASS | AVISO si la creacion del secret pass fallo"
+  ansible.builtin.debug:
+    msg: >-
+      El secret '{{ example_secret_name_pass }}' (driver pass) NO se
+      pudo crear. Revisa manualmente en el host:
+      'gpg --list-secret-keys', 'pass ls', y
+      'echo -n "..." | podman secret create --driver pass {{ example_secret_name_pass }} -'
+      para ver el error real. Error registrado por Ansible:
+      {{ pass_secret_result.msg | default('(sin detalle)') }}
+  when:
+    - "'pass' in enabled_drivers_list and create_example_secrets_bool"
+    - pass_secret_result is defined
+    - pass_secret_result is failed
+
+
+# =====================================================================
+# DRIVER: shell con sops + age (SIN crypta, ver ADR-015)
+# =====================================================================
+# La guia original usa 'crypta' como wrapper de sops+age para el
+# driver 'shell'. TODAS las versiones publicadas de crypta requieren
+# glibc 2.39+ (AlmaLinux 9 trae 2.34), asi que aqui se usa un script
+# propio (templates/sops-shell-driver.sh.j2) que llama a sops+age
+# directamente. Ademas, la API real del driver 'shell' de Podman >= 5
+# (containers/common/pkg/secrets/shelldriver) NO es la de la guia
+# ("--opt path=...,arg1=...,arg2=..."): exige 4 comandos
+# (lookup/store/list/delete), cada uno recibe el ID interno del secret
+# en la variable de entorno SECRET_ID. Ver ADR-015 para el analisis
+# completo (incluye el enlace al codigo fuente que lo confirma).
+
+- name: "podman_secrets_tooling | DRIVER SHELL | Crear directorio de claves age"
+  ansible.builtin.file:
+    path: "{{ age_key_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: "'shell' in enabled_drivers_list"
+
+# IMPORTANTE: usar la ruta ABSOLUTA ({{ age_install_dir }}/age-keygen).
+# Los binarios se instalan en /usr/local/bin, que NO esta en el
+# "secure_path" por defecto de sudoers en AlmaLinux/RHEL
+# (/usr/sbin:/usr/bin:/sbin:/bin:...). Al ejecutar via Ansible con
+# "become" (sudo), el PATH no incluye /usr/local/bin, asi que invocar
+# "age-keygen" a secas da "[Errno 2] No such file or directory". Lo
+# mismo aplica a cualquier otro binario en /usr/local/bin (por eso
+# sops se invoca con ruta absoluta dentro del script del driver shell).
+- name: "podman_secrets_tooling | DRIVER SHELL | Generar par de claves age"
+  ansible.builtin.command: "{{ age_install_dir }}/age-keygen -o {{ age_key_file }}"
+  become: true
+  vars:
+    ansible_become_flags: "-n"
+  args:
+    creates: "{{ age_key_file }}"
+  when: "'shell' in enabled_drivers_list"
+
+- name: "podman_secrets_tooling | DRIVER SHELL | Crear directorio del almacen cifrado"
+  ansible.builtin.file:
+    path: "{{ podman_secrets_shell_store_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: "'shell' in enabled_drivers_list"
+
+- name: "podman_secrets_tooling | DRIVER SHELL | Desplegar script del driver (sops+age)"
+  ansible.builtin.template:
+    src: sops-shell-driver.sh.j2
+    dest: "{{ podman_secrets_shell_driver_script }}"
+    owner: root
+    group: root
+    mode: "0755"
+  when: "'shell' in enabled_drivers_list"
+
+- name: "podman_secrets_tooling | DRIVER SHELL | Registrar secret en Podman (driver shell, sops+age)"
+  containers.podman.podman_secret:
+    name: "{{ example_secret_name_shell }}"
+    data: "{{ example_secret_value }}"
+    driver: shell
+    driver_opts:
+      lookup: "{{ podman_secrets_shell_driver_script }} lookup"
+      store: "{{ podman_secrets_shell_driver_script }} store"
+      list: "{{ podman_secrets_shell_driver_script }} list"
+      delete: "{{ podman_secrets_shell_driver_script }} delete"
+    state: present
+    skip_existing: true
+  become: true
+  vars:
+    ansible_become_flags: "-n"
+  when: "'shell' in enabled_drivers_list and create_example_secrets_bool"
+
+# =====================================================================
+# Smoke-test final
+# =====================================================================
+
+- name: "podman_secrets_tooling | VERIFY | Listar secrets de Podman"
+  ansible.builtin.command: "podman secret ls"
+  become: true
+  vars:
+    ansible_become_flags: "-n"
+  register: podman_secrets_list
+  changed_when: false
+
+- name: "podman_secrets_tooling | VERIFY | Mostrar lista de secrets"
+  ansible.builtin.debug:
+    var: podman_secrets_list.stdout_lines
+
+- name: "podman_secrets_tooling | VERIFY | Resumen final"
+  ansible.builtin.debug:
+    msg:
+      - "=========================================================="
+      - " Podman Secrets Tooling desplegado en {{ inventory_hostname }}"
+      - "=========================================================="
+      - "Binarios disponibles:"
+      - "  - age:     {{ age_version }} OK"
+      - "  - sops:    {{ sops_version }} OK"
+      - "  - gpg:     OK"
+      - "  - pass:    OK"
+      - ""
+      - "Drivers solicitados: {{ enabled_drivers_list | default([]) | join(', ') if enabled_drivers_list else '(solo binarios)' }}"
+      - "Secrets creados: {{ create_example_secrets_bool }}"
+      - ""
+      - "Secrets actuales en Podman:"
+      - "  {{ podman_secrets_list.stdout_lines | join(' / ') }}"
+      - "=========================================================="

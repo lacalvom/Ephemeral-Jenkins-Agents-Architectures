@@ -1,0 +1,62 @@
+---
+# =====================================================================
+# Playbook principal del laboratorio Jenkins + Podman
+# =====================================================================
+# Fases (en orden estricto):
+#   1. common               -> Base común en Controller y Podman Host
+#   2. jenkins_controller   -> Instala y arranca Jenkins LTS como servicio del usuario jenkins
+#   3. podman_host          -> Instala Podman + java y deja el servicio del agente preparado (pero deshabilitado)
+#   4. agent_registration   -> Lee el secret que Jenkins generó para el nodo, lo inyecta en el Podman Host y arranca el agente
+#   5. podman_secrets_tooling -> Instala age/sops/crypta/pass/gpg y configura los 3 drivers de Podman Secrets
+# =====================================================================
+
+- name: "Fase 1 · Configuración base común (Controller y Podman Host)"
+  hosts: jenkins_lab
+  become: true
+  roles:
+    - common
+
+- name: "Fase 2 · Despliegue del Jenkins Controller"
+  hosts: jenkins_controllers
+  become: true
+  roles:
+    - jenkins_controller
+
+- name: "Fase 3 · Despliegue del Podman Host"
+  hosts: podman_hosts
+  become: true
+  roles:
+    - podman_host
+
+- name: "Fase 4 · Vinculación del Podman Host con el Jenkins Controller"
+  hosts: jenkins_controllers
+  become: true
+  roles:
+    - agent_registration
+
+# =====================================================================
+# Fase 5 · Podman Secrets Tooling
+# =====================================================================
+# Integrado en el playbook principal (ver ADR-013): antes se ejecutaba
+# a mano via un playbook separado (secrets-tooling.yml) contra un grupo
+# opcional del inventario. Ahora forma parte del despliegue estandar:
+# cualquier "ansible-playbook site.yml" (o "./deploy.sh") deja los tres
+# drivers (file, pass, shell+crypta) instalados y con un secret de
+# ejemplo creado, sin pasos manuales adicionales.
+#
+# Limitaciones conocidas (documentadas, no bloquean el despliegue):
+#   - 'pass' requiere TTY interactivo para el secret cifrado real;
+#     el binario y la clave GPG SI se configuran correctamente.
+#   - 'crypta' no es compatible con AlmaLinux 9 (requiere glibc 2.39+,
+#     AlmaLinux 9 trae 2.34). El rol detecta esto automaticamente y
+#     lo reporta como aviso, sin fallar el playbook.
+# Ver docs/adr/0005-podman-secrets-como-root.md y
+#     docs/adr/0013-integrar-secrets-tooling-en-site-yml.md
+- name: "Fase 5 · Podman Secrets Tooling (drivers file/pass/shell)"
+  hosts: podman_hosts
+  become: true
+  vars:
+    enabled_drivers: [file, pass, shell]
+    create_example_secrets: true
+  roles:
+    - podman_secrets_tooling

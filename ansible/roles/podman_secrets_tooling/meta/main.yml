@@ -1,0 +1,22 @@
+---
+galaxy_info:
+  role_name: podman_secrets_tooling
+  author: DevOps Team
+  description: |
+    Instala el tooling de cifrado (age/sops/crypta) y configura los tres
+    drivers de Podman Secrets (file, pass, shell con crypta) en el Podman
+    Host. Integrado en site.yml (Fase 5, ver ADR-013): se ejecuta siempre
+    como parte del despliegue estandar del laboratorio, despues de
+    agent_registration.
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+  galaxy_tags: [podman, secrets, sops, age, crypta]
+# Sin "dependencies: [common]": site.yml ya garantiza que la Fase 1
+# (common) se ejecuta antes de la Fase 5 en el mismo playbook. Declarar
+# la dependencia aqui haria que el rol "common" completo se re-ejecute
+# en cada aplicacion de este rol (inofensivo pero redundante).
+dependencies: []

@@ -1,0 +1,42 @@
+:host {
+  display: block;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+.page {
+  max-width: 640px;
+  margin: 3rem auto;
+  padding: 0 1.5rem;
+  color: #1a1a1a;
+}
+
+.page__header {
+  margin-bottom: 2rem;
+}
+
+.page__subtitle {
+  color: #555;
+}
+
+.card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.5rem;
+  background: #fafafa;
+}
+
+.card__error {
+  color: #b00020;
+  font-weight: 600;
+}
+
+.card__message {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.card__timestamp,
+.card__version {
+  color: #555;
+  font-size: 0.9rem;
+}

@@ -1,0 +1,67 @@
+# Sintaxis: Containerfile para Podman (compatible con Docker)
+# Imagen: agent-jdk6-ubi8
+# Base: registry.access.redhat.com/ubi8/ubi-minimal
+# Proposito: agente efimero con Oracle JDK 6, para proyectos legacy que
+#            requieren estrictamente Java 6 (los flags de retrocompat
+#            de JDK 8 no son suficientes).
+#
+# IMPORTANTE: Oracle JDK 6 NO esta disponible via URL publica.
+# Ver binaries/README.md para instrucciones de descarga manual.
+
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+
+# Apache Maven 3.2.5: la ULTIMA version compatible con Java 6.
+# Maven 3.3.x requiere Java 7+.
+ARG MAVEN_VERSION=3.2.5
+
+LABEL maintainer="DevOps Team" \
+      description="Agente efimero Jenkins con Oracle JDK 6 y Maven 3.2.5 sobre UBI 8" \
+      version="1.0.0" \
+      io.jenkins-podman-lab.component="legacy-agent-jdk6"
+
+RUN microdnf install -y --setopt=install_weak_deps=0 --best \
+        tar \
+        gzip \
+        shadow-utils \
+        ca-certificates \
+    && microdnf clean all \
+    && rm -rf /var/cache/dnf /var/cache/yum
+
+# Usuario no-privilegiado (UID 1001, --userns=keep-id).
+RUN groupadd -g 1001 jenkins_agent && \
+    useradd -u 1001 -g 1001 -m -s /bin/bash jenkins_agent
+
+# Copiamos el binario de Oracle JDK 6 desde el contexto de build.
+# El usuario debe descargarlo manualmente y ponerlo en binaries/.
+# Ver binaries/README.md para instrucciones detalladas.
+COPY binaries/jdk-6u45-linux-x64.bin /tmp/jdk-installer.bin
+RUN chmod +x /tmp/jdk-installer.bin \
+    && mkdir -p /opt/jdk6 \
+    && /tmp/jdk-installer.bin -noregister \
+       -dir /opt/jdk6-installer \
+    && mv /opt/jdk6-installer/jdk1.6.0_45/* /opt/jdk6/ \
+    && rm -rf /opt/jdk6-installer /tmp/jdk-installer.bin \
+    && chown -R root:root /opt/jdk6 \
+    && chmod -R 0755 /opt/jdk6
+
+ENV JAVA_HOME=/opt/jdk6 \
+    MAVEN_HOME=/opt/maven \
+    PATH=/opt/jdk6/bin:/opt/maven/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Instalamos Maven 3.2.5 (ultima compatible con Java 6).
+# Descarga desde archive.apache.org, fuente publica estable.
+RUN curl -fSL "https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz" -o /tmp/maven.tar.gz \
+    && mkdir -p /opt/maven \
+    && tar -xzf /tmp/maven.tar.gz -C /opt/maven --strip-components=1 \
+    && rm -f /tmp/maven.tar.gz \
+    && chown -R root:root /opt/maven \
+    && chmod -R 0755 /opt/maven
+
+# Verificacion: java 6 y maven 3.2.5.
+RUN java -version 2>&1 | grep -qE '"1\.6\.' \
+    && mvn --version 2>&1 | grep -qE 'Apache Maven '"${MAVEN_VERSION}" \
+    || (echo "ERROR: versiones incorrectas" && java -version && mvn --version && exit 1)
+
+USER 1001
+
+CMD ["/bin/bash"]

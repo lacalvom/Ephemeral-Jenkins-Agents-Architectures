@@ -1,0 +1,141 @@
+---
+- name: "podman_host | Instalar paquetes de Podman y Java"
+  ansible.builtin.dnf:
+    name: "{{ podman_host_required_packages }}"
+    state: present
+    update_cache: false
+
+- name: "podman_host | Verificar instalación de podman"
+  ansible.builtin.command: podman --version
+  register: podman_version
+  changed_when: false
+
+- name: "podman_host | Verificar que podman-docker crea el alias 'docker'"
+  ansible.builtin.command: which docker
+  register: docker_alias
+  changed_when: false
+  failed_when: false
+
+# =====================================================================
+# podman-compose (pruebas manuales de la reference-app)
+# =====================================================================
+# "podman compose" busca un proveedor externo (docker-compose CLI o
+# podman-compose) en PATH; AlmaLinux 9 no trae ninguno por defecto.
+# podman-compose (implementacion Python) esta en EPEL 9. Sin esto,
+# `podman compose -f podman-compose.yml up -d` falla con
+# "looking up compose provider failed".
+- name: "podman_host | Asegurar EPEL habilitado (para el paquete 'podman-compose')"
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+
+- name: "podman_host | Instalar podman-compose"
+  ansible.builtin.dnf:
+    name: podman-compose
+    state: present
+
+- name: "podman_host | Verificar instalación de podman-compose"
+  ansible.builtin.command: podman-compose --version
+  register: podman_compose_version
+  changed_when: false
+
+- name: "podman_host | Habilitar linger para el usuario {{ jenkins_user }} (servicios rootless)"
+  ansible.builtin.command: "loginctl enable-linger {{ jenkins_user }}"
+  changed_when: true
+
+# =====================================================================
+# Socket rootless de Podman (API REST local de {{ jenkins_user }})
+# =====================================================================
+# El pipeline de referencia monta este socket dentro de los agentes
+# efimeros de Podman (ver reference-pipeline.groovy, stages
+# "Empaquetar Imagen ..."): -v /run/user/{{ jenkins_uid }}/podman/podman.sock:...
+# Ese fichero SOLO existe si el socket "podman.socket" (unidad vendor,
+# instalada junto al paquete podman en /usr/lib/systemd/user/) esta
+# habilitado y arrancado para el usuario {{ jenkins_user }}. Por
+# defecto NO esta activo tras una instalacion nueva; sin esta tarea,
+# el pipeline falla en el stage de empaquetado con:
+#   "Error: statfs /run/user/{{ jenkins_uid }}/podman/podman.sock: no such file or directory"
+- name: "podman_host | Habilitar y arrancar el socket rootless de Podman para {{ jenkins_user }}"
+  ansible.builtin.systemd:
+    name: podman.socket
+    scope: user
+    enabled: true
+    state: started
+  become: true
+  become_user: "{{ jenkins_user }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ jenkins_uid }}"
+
+- name: "podman_host | Verificar que el socket de Podman existe en disco"
+  ansible.builtin.stat:
+    path: "/run/user/{{ jenkins_uid }}/podman/podman.sock"
+  register: podman_socket_stat
+  retries: 5
+  delay: 2
+  until: podman_socket_stat.stat.exists
+
+- name: "podman_host | Fallar con mensaje claro si el socket de Podman no aparecio"
+  ansible.builtin.fail:
+    msg: >-
+      El socket /run/user/{{ jenkins_uid }}/podman/podman.sock no existe
+      tras habilitar podman.socket. Revisa
+      'sudo -u {{ jenkins_user }} XDG_RUNTIME_DIR=/run/user/{{ jenkins_uid }}
+      systemctl --user status podman.socket' en el podman-host.
+  when: not podman_socket_stat.stat.exists
+
+- name: "podman_host | Crear ~/.config/systemd/user para {{ jenkins_user }}"
+  ansible.builtin.file:
+    path: "{{ jenkins_home }}/.config/systemd/user"
+    state: directory
+    owner: "{{ jenkins_user }}"
+    group: "{{ jenkins_group }}"
+    mode: "0755"
+
+- name: "podman_host | Desplegar unidad systemd jenkins-agent.service"
+  ansible.builtin.template:
+    src: jenkins-agent.service.j2
+    dest: "{{ jenkins_home }}/.config/systemd/user/jenkins-agent.service"
+    owner: "{{ jenkins_user }}"
+    group: "{{ jenkins_group }}"
+    mode: "0644"
+
+- name: "podman_host | Recargar demonios de usuario para {{ jenkins_user }}"
+  ansible.builtin.systemd:
+    daemon_reload: true
+    scope: user
+  become: true
+  become_user: "{{ jenkins_user }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ jenkins_uid }}"
+
+# =====================================================================
+# Codigo de la aplicacion de referencia (backend Java/Maven + frontend
+# Angular/npm) para el pipeline "reference-pipeline".
+# =====================================================================
+# Este laboratorio no usa SCM: el pipeline asume que "backend/" y
+# "frontend/" ya existen en la raiz de su workspace. Ansible los copia
+# aqui, en cada provision, directamente desde jenkins-config/samples/
+# al workspace real que Jenkins asignara al job (convencion estandar
+# <RemoteFs>/workspace/<nombre-del-job>). Al re-copiarse en cada
+# ejecucion del playbook, el codigo del workspace siempre queda
+# sincronizado con el del repositorio del laboratorio.
+
+- name: "podman_host | Crear directorio de workspace para {{ reference_pipeline_job_name }}"
+  ansible.builtin.file:
+    path: "{{ reference_app_workspace_dest }}"
+    state: directory
+    owner: "{{ jenkins_user }}"
+    group: "{{ jenkins_group }}"
+    mode: "0755"
+
+- name: "podman_host | Copiar backend/frontend de la reference-app al workspace"
+  ansible.builtin.copy:
+    src: "{{ jenkins_config_reference_app_dir }}/{{ item }}"
+    dest: "{{ reference_app_workspace_dest }}/"
+    owner: "{{ jenkins_user }}"
+    group: "{{ jenkins_group }}"
+  loop:
+    - "backend"
+    - "frontend"
+    - "podman-compose.yml"
+    - "README.md"

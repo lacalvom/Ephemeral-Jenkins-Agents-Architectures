@@ -1,0 +1,54 @@
+#!/bin/bash
+# =====================================================================
+# {{ podman_secrets_shell_driver_script }} — driver 'shell' de Podman Secrets
+# =====================================================================
+# Generado por Ansible (rol podman_secrets_tooling). NO editar a mano:
+# se sobreescribe en cada "ansible-playbook site.yml".
+#
+# Implementa las 4 acciones que exige el driver "shell" de Podman
+# (containers/common/pkg/secrets/shelldriver): lookup, store, list,
+# delete. Podman invoca este script como "/bin/sh -c '<comando> <accion>'"
+# y pasa el ID interno del secret en la variable de entorno SECRET_ID.
+#
+# Usa sops (cifrado) + age (clave) directamente, SIN pasar por 'crypta':
+# crypta requiere glibc 2.39+, incompatible con AlmaLinux 9 (ver ADR-015).
+# El resultado final es equivalente al driver 'shell'+crypta descrito en
+# la guia original: el secreto se cifra en reposo con age, y Podman
+# solo guarda la instruccion de como descifrarlo, nunca el valor.
+# =====================================================================
+set -euo pipefail
+
+ACTION="${1:?uso: $0 <lookup|store|list|delete>}"
+STORE_DIR="{{ podman_secrets_shell_store_dir }}"
+AGE_KEY_FILE="{{ age_key_file }}"
+SOPS_BIN="{{ sops_install_dir }}/sops"
+
+export SOPS_AGE_KEY_FILE="${AGE_KEY_FILE}"
+mkdir -p "${STORE_DIR}"
+
+case "${ACTION}" in
+  lookup)
+    : "${SECRET_ID:?SECRET_ID no definido por Podman}"
+    exec "${SOPS_BIN}" --decrypt --input-type binary --output-type binary \
+        "${STORE_DIR}/${SECRET_ID}.enc"
+    ;;
+  store)
+    : "${SECRET_ID:?SECRET_ID no definido por Podman}"
+    recipient=$(grep 'public key' "${AGE_KEY_FILE}" | awk '{print $4}')
+    "${SOPS_BIN}" --encrypt --age "${recipient}" \
+        --input-type binary --output-type binary /dev/stdin \
+        > "${STORE_DIR}/${SECRET_ID}.enc"
+    ;;
+  list)
+    find "${STORE_DIR}" -maxdepth 1 -name '*.enc' -printf '%f\n' 2>/dev/null \
+        | sed 's/\.enc$//'
+    ;;
+  delete)
+    : "${SECRET_ID:?SECRET_ID no definido por Podman}"
+    rm -f "${STORE_DIR}/${SECRET_ID}.enc"
+    ;;
+  *)
+    echo "podman-secret-sops-driver: accion desconocida '${ACTION}'" >&2
+    exit 1
+    ;;
+esac

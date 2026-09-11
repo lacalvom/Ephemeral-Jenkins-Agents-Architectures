@@ -1,0 +1,120 @@
+# =====================================================================
+# jenkins.yaml — Configuration as Code (JCasC) — NO USADO ACTUALMENTE
+# =====================================================================
+# Este fichero (y su plantilla ansible/roles/jenkins_controller/templates/
+# jenkins.yaml.j2) NO se aplica en ningun despliegue actual del
+# laboratorio: JCasC tiene un bug de orden de carga de plugins en
+# Jenkins 2.568.3 (ver docs/adr/0003-init-groovy-vs-jcasc.md). Se
+# conserva solo como documentacion de referencia de lo que se
+# aplicaria si JCasC funcionara.
+#
+# La configuracion real equivalente se aplica via scripts en
+# jenkins-config/groovy/, copiados a init.groovy.d/ por Ansible:
+#   - create-admin.groovy         -> bloque "securityRealm" de aqui abajo
+#   - create-agent.groovy         -> bloque "nodes" de aqui abajo
+#   - create-config-files.groovy  -> bloque "configFileProvider" de aqui abajo
+#
+# Documentacion: https://github.com/jenkinsci/configuration-as-code-plugin
+# =====================================================================
+
+jenkins:
+  systemMessage: |
+    Jenkins + Podman ephemeral agents lab.
+    Configuracion gestionada por JCasC (jenkins.yaml).
+
+  numExecutors: 0
+  mode: EXCLUSIVE
+  labelString: "controller"
+
+  securityRealm:
+    local:
+      allowsSignup: false
+      enableCaptcha: false
+      users:
+        - id: "admin"
+          name: "admin"
+          # El password se inyecta desde Ansible como hash bcrypt
+          password: "#jbcrypt:$2a$10$...HASH_GENERADO_POR_ANSIBLE..."
+          properties:
+            - mailer:
+                emailAddress: "admin@jenkins-podman-lab.local"
+
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+  remotingSecurity:
+    enabled: true
+
+  # Nodos permanentes (agentes)
+  nodes:
+    - permanent:
+        name: "podman-host-almalinux9"
+        labelString: "podman-node"
+        remoteFS: "/datos/jenkins/pipelines-workspace"
+        numExecutors: 2
+        mode: NORMAL
+        retentionStrategy: "always"
+        launcher:
+          jnlp:
+            webSocket: true
+            tunnel: ""
+
+  globalNodeProperties:
+    - envVars:
+        env:
+          - key: "JENKINS_PODMAN_LAB"
+            value: "true"
+          - key: "PODMAN_REGISTRY"
+            value: "registry.access.redhat.com"
+
+# Plugin: Docker Pipeline (docker-workflow)
+docker:
+  registry:
+    - url: "https://registry.access.redhat.com"
+      credentialsId: ""
+
+# Plugin: Config File Provider
+configFileProvider:
+  managedFiles:
+    - id: "maven-settings-modern"
+      name: "maven-settings-modern"
+      comment: "settings.xml para builds Maven del pipeline de referencia (mirror: Maven Central)"
+      content: |
+        <?xml version="1.0" encoding="UTF-8"?>
+        <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                                      http://maven.apache.org/xsd/settings-1.0.0.xsd">
+          <mirrors>
+            <mirror>
+              <id>maven-central</id>
+              <name>Maven Central (mirror explicito para el laboratorio)</name>
+              <url>https://repo.maven.apache.org/maven2/</url>
+              <mirrorOf>*</mirrorOf>
+            </mirror>
+          </mirrors>
+        </settings>
+    - id: "npmrc-frontend"
+      name: "npmrc-frontend"
+      comment: ".npmrc para builds npm/Angular del pipeline de referencia (registry: npmjs.org)"
+      content: |
+        registry=https://registry.npmjs.org/
+        strict-ssl=true
+
+# Plugin: Build Timeout
+buildTimeoutWrapper:
+  timeoutMinutes: 60
+
+# Plugin: Timestamper
+timestamper:
+  allPipelines: true
+
+# Configuracion del propio JCasC
+jcasc:
+  reloadToken: "jenkins-podman-lab-reload-token"
+
+# Plugin: configuration-as-code-groovy (ejecuta scripts tras JCasC)
+configuration-as-code-groovy:
+  scripts:
+    - "groovy/init.groovy"

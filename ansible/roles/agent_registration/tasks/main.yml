@@ -1,0 +1,149 @@
+---
+# =====================================================================
+# agent_registration — vincula el Podman Host con el Jenkins Controller
+# =====================================================================
+# Estrategia:
+#   1. Espera a Jenkins activo.
+#   2. Verifica que el nodo existe (creado por JCasC/init.groovy).
+#   3. LEE el secret REAL del nodo desde la API REST de Jenkins
+#      (/computer/<node>/jenkins-agent.jnlp) — es el secret que Jenkins
+#      genero al crear el nodo y almacena cifrado en disco.
+#   4. Lo escribe en /datos/jenkins/agent/secret-file del podman-host.
+#   5. Descarga agent.jar en el podman-host.
+#   6. Arranca jenkins-agent.service (que usa el secret del fichero).
+#
+# Esta es la unica forma correcta de propagar el secret: leerlo del
+# Controller, no generarlo aleatoriamente (eso provocaba "incorrect
+# secret" en el handshake WebSocket).
+# =====================================================================
+
+- name: "agent_registration | Esperar a que Jenkins responda en :{{ jenkins_http_port }}"
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ jenkins_http_port }}/login"
+    status_code: [200, 403]
+    timeout: 10
+  register: jenkins_health
+  retries: 30
+  delay: 5
+  until: jenkins_health.status in [200, 403]
+  tags: agent_registration
+
+- name: "agent_registration | Verificar que el nodo {{ jenkins_agent_node_name }} está declarado en Jenkins"
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ jenkins_http_port }}/computer/{{ jenkins_agent_node_name }}/api/json"
+    url_username: "{{ jenkins_admin_user }}"
+    url_password: "{{ jenkins_admin_password }}"
+    force_basic_auth: true
+    status_code: [200, 404]
+  register: node_check
+  failed_when: node_check.status != 200
+  changed_when: false
+  tags: agent_registration
+
+- name: "agent_registration | Leer el secret REAL del nodo desde Jenkins (JNLP endpoint)"
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ jenkins_http_port }}/computer/{{ jenkins_agent_node_name }}/jenkins-agent.jnlp"
+    url_username: "{{ jenkins_admin_user }}"
+    url_password: "{{ jenkins_admin_password }}"
+    force_basic_auth: true
+    return_content: true
+    status_code: 200
+  register: jnlp_xml
+  tags: agent_registration
+
+- name: "agent_registration | Extraer el secret del XML JNLP"
+  ansible.builtin.set_fact:
+    podman_agent_secret: "{{ (jnlp_xml.content | regex_search('<argument>([a-f0-9]{64,})</argument>', '\\1') | first) }}"
+  tags: agent_registration
+
+- name: "agent_registration | Verificar que se obtuvo un secret válido"
+  ansible.builtin.assert:
+    that:
+      - podman_agent_secret | length >= 32
+    fail_msg: "No se pudo extraer el secret del JNLP del nodo {{ jenkins_agent_node_name }}"
+  tags: agent_registration
+
+- name: "agent_registration | Crear directorio {{ jenkins_agent_dir }} en el Podman Host"
+  ansible.builtin.file:
+    path: "{{ jenkins_agent_dir }}"
+    state: directory
+    owner: "{{ jenkins_user }}"
+    group: "{{ jenkins_group }}"
+    mode: "0750"
+  delegate_to: "{{ groups['podman_hosts'][0] }}"
+  become: true
+  tags: agent_registration
+
+- name: "agent_registration | Propagar secret al Podman Host"
+  ansible.builtin.copy:
+    dest: "{{ jenkins_agent_secret_path }}"
+    content: "{{ podman_agent_secret }}"
+    owner: "{{ jenkins_user }}"
+    group: "{{ jenkins_group }}"
+    mode: "0400"
+  delegate_to: "{{ groups['podman_hosts'][0] }}"
+  become: true
+  tags: agent_registration
+
+- name: "agent_registration | Descargar agent.jar en el Podman Host"
+  ansible.builtin.get_url:
+    url: "{{ jenkins_agent_jar_url }}"
+    dest: "{{ jenkins_agent_dir }}/agent.jar"
+    owner: "{{ jenkins_user }}"
+    group: "{{ jenkins_group }}"
+    mode: "0644"
+  delegate_to: "{{ groups['podman_hosts'][0] }}"
+  become: true
+  tags: agent_registration
+
+- name: "agent_registration | Recargar demonios de usuario en el Podman Host"
+  ansible.builtin.systemd:
+    daemon_reload: true
+    scope: user
+  become: true
+  become_user: "{{ jenkins_user }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ jenkins_uid }}"
+  delegate_to: "{{ groups['podman_hosts'][0] }}"
+  tags: agent_registration
+
+- name: "agent_registration | Habilitar y arrancar jenkins-agent.service en el Podman Host"
+  ansible.builtin.systemd:
+    name: jenkins-agent.service
+    enabled: true
+    state: started
+    scope: user
+  become: true
+  become_user: "{{ jenkins_user }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ jenkins_uid }}"
+  delegate_to: "{{ groups['podman_hosts'][0] }}"
+  tags: agent_registration
+
+- name: "agent_registration | Verificar estado del agente tras 15s"
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ jenkins_http_port }}/computer/{{ jenkins_agent_node_name }}/api/json"
+    url_username: "{{ jenkins_admin_user }}"
+    url_password: "{{ jenkins_admin_password }}"
+    force_basic_auth: true
+  register: agent_status
+  until: agent_status.json.offline == false
+  retries: 15
+  delay: 5
+  tags: agent_registration
+
+- name: "agent_registration | Mostrar resumen final del lab"
+  ansible.builtin.debug:
+    msg:
+      - "=========================================================="
+      - " Jenkins + Podman lab desplegado"
+      - "=========================================================="
+      - "URL Controller: http://{{ hostvars[groups['jenkins_controllers'][0]]['ansible_host'] }}:{{ jenkins_http_port }}"
+      - "Usuario admin:  {{ jenkins_admin_user }}"
+      - "Password admin: (la definida en vault.yml o JENKINS_ADMIN_PASSWORD)"
+      - "Nodo:           {{ jenkins_agent_node_name }}"
+      - "Etiqueta:       {{ jenkins_agent_label }}"
+      - "Podman Host:    {{ hostvars[groups['podman_hosts'][0]]['ansible_host'] }}"
+      - "Estado agente:  {{ 'CONECTADO' if agent_status.json.offline == false else 'OFFLINE' }}"
+      - "=========================================================="
+  tags: agent_registration

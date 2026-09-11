@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: podman_host
+  author: DevOps Team
+  description: Instala Podman y prepara el servicio rootless del agente Jenkins
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+  galaxy_tags: [podman, jenkins-agent, rootless]
+dependencies:
+  - role: common

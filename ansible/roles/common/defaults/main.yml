@@ -1,0 +1,11 @@
+---
+# Defaults del rol common — sobreescribibles desde group_vars/all/vars.yml
+common_required_packages:
+  - git
+  - curl
+  - wget
+  - tar
+  - unzip
+  - jq
+  - ca-certificates
+  - openssh-server

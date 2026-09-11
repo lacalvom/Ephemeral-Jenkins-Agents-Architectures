@@ -1,0 +1,64 @@
+# Sintaxis: Containerfile para Podman (compatible con Docker)
+# Imagen: agent-jdk8-maven-ubi8
+# Base: registry.access.redhat.com/ubi8/ubi-minimal
+# Proposito: agente efimero con JDK 8 + Maven 3.8.x, para proyectos legacy
+#            Java 8 que usan Maven como herramienta de build.
+
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+
+# Temurin 8 (OpenJDK 8 mantenido por Eclipse Adoptium).
+ARG JDK_VERSION=8u504-b01
+ARG JDK_TARBALL_BASE=8u504b01
+
+# Apache Maven 3.8.7: la ultima version estable compatible con Java 8
+# (Maven 3.9.x requiere Java 8 solo en tiempo de ejecucion, pero
+# oficialmente recomienda Java 11+). 3.8.7 es la mas probada con Java 8.
+ARG MAVEN_VERSION=3.8.7
+
+LABEL maintainer="DevOps Team" \
+      description="Agente efimero Jenkins con JDK 8 (Temurin) y Maven 3.8.7 sobre UBI 8" \
+      version="1.0.0" \
+      io.jenkins-podman-lab.component="legacy-agent-jdk8-maven"
+
+# microdnf es el equivalente a dnf en las imagenes -minimal.
+RUN microdnf install -y --setopt=install_weak_deps=0 --best \
+        tar \
+        gzip \
+        shadow-utils \
+    && microdnf clean all \
+    && rm -rf /var/cache/dnf /var/cache/yum
+
+# Usuario no-privilegiado con UID fijo 1001 (mapeo con --userns=keep-id).
+RUN groupadd -g 1001 jenkins_agent && \
+    useradd -u 1001 -g 1001 -m -s /bin/bash jenkins_agent
+
+ENV JAVA_HOME=/opt/jdk8 \
+    MAVEN_HOME=/opt/maven \
+    PATH=/opt/jdk8/bin:/opt/maven/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Instalamos JDK y Maven en dos RUN separados para mantener las capas
+# pequenas y mejorar el cache de Podman si solo cambia una pieza.
+RUN curl -fsSL -o /tmp/jdk8.tar.gz \
+        "https://github.com/adoptium/temurin8-binaries/releases/download/jdk${JDK_VERSION}/OpenJDK8U-jdk_x64_linux_hotspot_${JDK_TARBALL_BASE}.tar.gz" \
+    && mkdir -p /opt/jdk8 \
+    && tar -xzf /tmp/jdk8.tar.gz -C /opt/jdk8 --strip-components=1 \
+    && rm -f /tmp/jdk8.tar.gz \
+    && chown -R root:root /opt/jdk8 \
+    && chmod -R 0755 /opt/jdk8
+
+RUN curl -fsSL -o /tmp/maven.tar.gz \
+        "https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz" \
+    && mkdir -p /opt/maven \
+    && tar -xzf /tmp/maven.tar.gz -C /opt/maven --strip-components=1 \
+    && rm -f /tmp/maven.tar.gz \
+    && chown -R root:root /opt/maven \
+    && chmod -R 0755 /opt/maven
+
+# Verificacion minima de versiones.
+RUN java -version 2>&1 | grep -qE 'openjdk version "(8\.|1\.8\.)' \
+    && mvn --version 2>&1 | grep -qE 'Apache Maven '"${MAVEN_VERSION}" \
+    || (echo "ERROR: versiones incorrectas" && java -version && mvn --version && exit 1)
+
+USER 1001
+
+CMD ["/bin/bash"]

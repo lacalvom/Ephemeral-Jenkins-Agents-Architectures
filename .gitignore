@@ -1,0 +1,34 @@
+# =====================================================================
+# .gitignore del laboratorio jenkins-podman-lab
+# =====================================================================
+
+# --- Artefactos generados por deploy.sh ---
+# Contiene la cloud image (cientos de MB), los discos qcow2 de las VMs,
+# las ISOs de cloud-init y los ficheros user-data/meta-data, que incluyen
+# datos especificos de la maquina (clave SSH publica, hostname, etc.).
+# Se regeneran en cada ejecucion de deploy.sh; no deben versionarse.
+aux-files/*
+!aux-files/.gitkeep
+
+# --- Ansible ---
+*.retry
+.ansible/
+
+# Secretos locales (no versionar). Plantilla en vault.yml.example
+ansible/group_vars/all/vault.yml
+
+# Configuracion local de deploy.sh (opcional, ver .env.example)
+.env
+
+# --- Python (helper bcrypt y similares) ---
+__pycache__/
+*.py[cod]
+
+# --- Editores / SO ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# --- Logs ---
+*.log

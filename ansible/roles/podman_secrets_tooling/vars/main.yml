@@ -1,0 +1,3 @@
+---
+# Paths internos del rol (no sobreescribibles desde fuera)
+podman_secrets_tool_dir: "/tmp/podman-secrets-tooling"

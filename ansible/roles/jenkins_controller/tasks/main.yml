@@ -1,0 +1,285 @@
+---
+# =====================================================================
+# jenkins_controller — Plan B: Plugins + init.groovy.d (sin JCasC)
+# =====================================================================
+# JCasC presenta un problema de orden de carga con Jenkins 2.568.3
+# (configurators no registrados al ejecutar init()).
+# Usamos el metodo tradicional: scripts Groovy en init.groovy.d/ que
+# Jenkins ejecuta automaticamente al arrancar.
+# =====================================================================
+
+# Los secretos no se versionan: hay que definirlos antes de desplegar.
+- name: "jenkins_controller | Verificar que se ha definido la password del admin de Jenkins"
+  ansible.builtin.assert:
+    that:
+      - jenkins_admin_password | length > 0
+    fail_msg: >-
+      No se ha definido 'jenkins_admin_password'. Definela de una de estas
+      dos formas (ambas ignoradas por git):
+      (1) copia el fichero de plantilla y editalo:
+          cp ansible/group_vars/all/vault.yml.example ansible/group_vars/all/vault.yml
+      (2) o define JENKINS_ADMIN_PASSWORD en el .env de la raiz
+          (copia de .env.example; deploy.sh la exporta automaticamente).
+    quiet: true
+
+- name: "jenkins_controller | Instalar Java {{ java_version }} y python3-bcrypt"
+  ansible.builtin.dnf:
+    name: "{{ jenkins_controller_required_packages }}"
+    state: present
+    update_cache: false
+
+- name: "jenkins_controller | Descargar clave GPG del repo oficial de Jenkins LTS"
+  ansible.builtin.get_url:
+    url: "{{ jenkins_repo_key_url }}"
+    dest: /tmp/jenkins-repo.key
+    mode: "0644"
+
+- name: "jenkins_controller | Copiar clave GPG a /etc/pki/rpm-gpg/"
+  ansible.builtin.copy:
+    src: /tmp/jenkins-repo.key
+    dest: /etc/pki/rpm-gpg/jenkins-repo.key
+    owner: root
+    group: root
+    mode: "0644"
+    remote_src: true
+
+- name: "jenkins_controller | Importar clave GPG al anillo del sistema"
+  ansible.builtin.command: "rpm --import /etc/pki/rpm-gpg/jenkins-repo.key"
+  args:
+    creates: /var/lib/rpm/.rpm.lock.jenkins-imported
+
+- name: "jenkins_controller | Añadir repo oficial de Jenkins LTS"
+  ansible.builtin.yum_repository:
+    name: jenkins
+    description: "Jenkins LTS (RHEL/derivatives)"
+    baseurl: "{{ jenkins_repo_url }}"
+    gpgkey: file:///etc/pki/rpm-gpg/jenkins-repo.key
+    gpgcheck: true
+    enabled: true
+    state: present
+
+- name: "jenkins_controller | Instalar Jenkins LTS {{ jenkins_version }}"
+  ansible.builtin.dnf:
+    name: "jenkins-{{ jenkins_version }}"
+    state: present
+    update_cache: true
+    disable_gpg_check: true
+
+- name: "jenkins_controller | Descargar Jenkins Plugin Installation Manager Tool"
+  ansible.builtin.get_url:
+    url: "{{ jenkins_plugin_manager_url }}"
+    dest: "{{ jenkins_plugin_manager_jar }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "jenkins_controller | Copiar plugins.yaml al Controller"
+  ansible.builtin.copy:
+    src: "{{ jenkins_config_plugins_yaml }}"
+    dest: /etc/jenkins-plugins.yaml
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: "jenkins_controller | Instalar plugins declarados en plugins.yaml"
+  ansible.builtin.command: >
+    java -jar {{ jenkins_plugin_manager_jar }}
+    --plugin-file /etc/jenkins-plugins.yaml
+    --plugin-download-directory {{ jenkins_controller_home }}/plugins
+    --jenkins-version {{ jenkins_version }}
+  args:
+    creates: "{{ jenkins_controller_home }}/plugins/configuration-as-code.jpi"
+  register: plugin_install
+  changed_when: plugin_install.rc == 0 and ('Installed' in plugin_install.stdout or 'Downloaded' in plugin_install.stdout)
+
+- name: "jenkins_controller | Ajustar propietario de plugins al usuario jenkins"
+  ansible.builtin.file:
+    path: "{{ jenkins_controller_home }}/plugins"
+    state: directory
+    owner: "{{ jenkins_service_user }}"
+    group: "{{ jenkins_service_group }}"
+    recurse: true
+
+# =====================================================================
+# Copia de scripts init.groovy.d (Plan B: sin JCasC)
+# =====================================================================
+
+- name: "jenkins_controller | Crear init.groovy.d/ y jobs/"
+  ansible.builtin.file:
+    path: "{{ jenkins_controller_home }}/{{ item }}"
+    state: directory
+    owner: "{{ jenkins_service_user }}"
+    group: "{{ jenkins_service_group }}"
+    mode: "0755"
+  loop:
+    - "init.groovy.d"
+    - "jobs"
+
+- name: "jenkins_controller | Copiar scripts de inicializacion"
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ jenkins_controller_home }}/init.groovy.d/{{ item.dest }}"
+    owner: "{{ jenkins_service_user }}"
+    group: "{{ jenkins_service_group }}"
+    mode: "0644"
+  loop:
+    - { src: "{{ jenkins_config_dir }}/groovy/create-admin.groovy", dest: "01-create-admin.groovy" }
+    - { src: "{{ jenkins_config_dir }}/groovy/create-agent.groovy", dest: "02-create-agent.groovy" }
+    - { src: "{{ jenkins_config_dir }}/groovy/create-pipeline.groovy", dest: "03-create-pipeline.groovy" }
+    - { src: "{{ jenkins_config_dir }}/groovy/create-config-files.groovy", dest: "04-create-config-files.groovy" }
+
+- name: "jenkins_controller | Copiar reference-pipeline.groovy"
+  ansible.builtin.copy:
+    src: "{{ jenkins_config_reference_pipeline }}"
+    dest: "{{ jenkins_controller_home }}/jobs/reference-pipeline.groovy"
+    owner: "{{ jenkins_service_user }}"
+    group: "{{ jenkins_service_group }}"
+    mode: "0644"
+
+# =====================================================================
+# Configuracion de systemd + URL + arranque
+# =====================================================================
+
+- name: "jenkins_controller | Crear directorio para drop-in de systemd"
+  ansible.builtin.file:
+    path: /etc/systemd/system/jenkins.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "jenkins_controller | Crear drop-in de systemd (con env vars para init.groovy)"
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/jenkins.service.d/override.conf
+    content: |
+      [Service]
+      # -Djenkins.install.runSetupWizard=false COMBINADO con
+      # jenkins.install.InstallState=2.0 (creado por el playbook via
+      # el modulo file mas abajo) deshabilita el wizard retroactivamente.
+      # Solo funcionan juntos: el flag solo se aplica si InstallState ya
+      # dice "INITIAL_SETUP_COMPLETED".
+      #
+      # NO incluimos -Dcasc.jenkins.config: JCasC tiene un bug de orden
+      # de carga de plugins en Jenkins 2.568.3 (ver ADR-003). Este
+      # laboratorio NO usa JCasC en ningun arranque (ni el primero ni
+      # posteriores); toda la configuracion equivalente (admin, nodo,
+      # job, managed config files) se aplica via init.groovy.d/, que
+      # Jenkins ejecuta automaticamente en cada arranque. El fichero
+      # jenkins-config/casc/jenkins.yaml (y su plantilla jenkins.yaml.j2)
+      # se conserva solo como referencia/documentacion de lo que se
+      # aplicaria si el bug de JCasC se resolviera; Ansible NO lo copia
+      # ni lo activa en ningun punto del playbook actual.
+      Environment="JAVA_OPTS=-Djava.awt.headless=true -Djava.io.tmpdir={{ jenkins_tmp_dir }} -Djenkins.install.runSetupWizard=false"
+      Environment="JENKINS_HOME={{ jenkins_controller_home }}"
+      Environment="JENKINS_ADMIN_USER={{ jenkins_admin_user }}"
+      Environment="JENKINS_ADMIN_PASSWORD={{ jenkins_admin_password }}"
+      Environment="JENKINS_AGENT_NODE_NAME={{ podman_agent_node_name }}"
+      Environment="JENKINS_AGENT_LABEL={{ podman_agent_label }}"
+      Environment="JENKINS_AGENT_WORKDIR={{ podman_agent_workspace }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: "jenkins_controller | Recargar systemd"
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: "jenkins_controller | Cambiar propietario de JENKINS_HOME al usuario jenkins"
+  ansible.builtin.file:
+    path: "{{ jenkins_controller_home }}"
+    state: directory
+    owner: "{{ jenkins_service_user }}"
+    group: "{{ jenkins_service_group }}"
+    recurse: true
+
+- name: "jenkins_controller | Configurar Jenkins URL en XML"
+  ansible.builtin.copy:
+    dest: "{{ jenkins_controller_home }}/jenkins.model.JenkinsLocationConfiguration.xml"
+    content: |
+      <?xml version='1.1' encoding='UTF-8'?>
+      <jenkins.model.JenkinsLocationConfiguration>
+        <adminAddress>admin@jenkins.local</adminAddress>
+        <jenkinsUrl>http://{{ hostvars[groups['jenkins_controllers'][0]]['ansible_host'] }}:{{ jenkins_http_port }}/</jenkinsUrl>
+      </jenkins.model.JenkinsLocationConfiguration>
+    owner: "{{ jenkins_service_user }}"
+    group: "{{ jenkins_service_group }}"
+    mode: "0644"
+
+# Crear InstallState.xml ANTES del primer arranque de Jenkins.
+# Esto, combinado con -Djenkins.install.runSetupWizard=false en JAVA_OPTS,
+# hace que el setup wizard NO se muestre retroactivamente.
+# El contenido "2.0" indica INITIAL_SETUP_COMPLETED.
+- name: "jenkins_controller | Crear jenkins.install.InstallState con INITIAL_SETUP_COMPLETED"
+  ansible.builtin.copy:
+    dest: "{{ jenkins_controller_home }}/jenkins.install.InstallState"
+    content: "2.0\n"
+    owner: "{{ jenkins_service_user }}"
+    group: "{{ jenkins_service_group }}"
+    mode: "0600"
+
+- name: "jenkins_controller | Habilitar y arrancar jenkins.service"
+  ansible.builtin.service:
+    name: jenkins
+    state: started
+    enabled: true
+
+- name: "jenkins_controller | Esperar a que Jenkins responda en :{{ jenkins_http_port }}"
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ jenkins_http_port }}/login"
+    status_code: [200, 403]
+    timeout: 10
+  register: jenkins_health
+  retries: 60
+  delay: 5
+  until: jenkins_health.status in [200, 403]
+
+# Pausa adicional para que los init.groovy.d/ terminen de crear
+# admin/nodo/job. Sin esta pausa, los checks posteriores fallan con
+# 404 porque el nodo aun no existe cuando los consultamos.
+- name: "jenkins_controller | Esperar a que init.groovy.d/ termine"
+  ansible.builtin.pause:
+    seconds: 30
+
+- name: "jenkins_controller | Verificar que InstallState.xml tiene contenido correcto"
+  ansible.builtin.slurp:
+    src: "{{ jenkins_controller_home }}/jenkins.install.InstallState"
+  register: install_state_content
+  failed_when: install_state_content.content | b64decode | regex_replace('\\s', '') != '2.0'
+
+# Verificacion: el body del dashboard NO debe contener "Setup Wizard"
+# como contenido principal (puede aparecer como enlace en menus laterales,
+# eso es OK). El check busca la cadena dentro de la zona <main>.
+- name: "jenkins_controller | Verificar que el dashboard NO contiene wizard"
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ jenkins_http_port }}/"
+    url_username: "{{ jenkins_admin_user }}"
+    url_password: "{{ jenkins_admin_password }}"
+    force_basic_auth: true
+    return_content: true
+    status_code: 200
+  register: dashboard_check
+  failed_when:
+    - dashboard_check.content | regex_search('<title>Setup Wizard') != None
+
+- name: "jenkins_controller | Verificar que el nodo {{ podman_agent_node_name }} existe"
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ jenkins_http_port }}/computer/{{ podman_agent_node_name }}/api/json"
+    url_username: "{{ jenkins_admin_user }}"
+    url_password: "{{ jenkins_admin_password }}"
+    force_basic_auth: true
+    status_code: [200, 404]
+  register: node_check
+  retries: 15
+  delay: 5
+  until: node_check.status == 200
+  failed_when: node_check.status != 200
+
+- name: "jenkins_controller | Verificar que el job reference-pipeline existe"
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ jenkins_http_port }}/job/reference-pipeline/api/json"
+    url_username: "{{ jenkins_admin_user }}"
+    url_password: "{{ jenkins_admin_password }}"
+    force_basic_auth: true
+    status_code: [200]
+  register: job_check
+  failed_when: job_check.status != 200

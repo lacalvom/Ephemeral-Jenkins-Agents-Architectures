@@ -1,0 +1,22 @@
+# =====================================================================
+# group_vars/all/vault.yml.example — Plantilla de secretos
+# =====================================================================
+# Copia este fichero a "group_vars/all/vault.yml" (sin .example) para
+# sobreescribir los valores por defecto de "vars.yml" con tus propios
+# secretos. "vault.yml" esta en .gitignore, asi que NO se versiona: tus
+# credenciales reales no acabaran en un repositorio publico.
+#
+#   cp ansible/group_vars/all/vault.yml.example \
+#      ansible/group_vars/all/vault.yml
+#
+# Ansible carga todos los ficheros de group_vars/all/ en orden
+# alfabetico, y "vault.yml" va despues de "vars.yml", de modo que estos
+# valores tienen prioridad.
+#
+# OPCIONAL: si quieres cifrar este fichero con ansible-vault:
+#   ansible-vault encrypt ansible/group_vars/all/vault.yml
+# y ejecutar los playbooks con --ask-vault-pass.
+# =====================================================================
+
+# Password del usuario admin de Jenkins
+jenkins_admin_password: "cambia-esta-password"

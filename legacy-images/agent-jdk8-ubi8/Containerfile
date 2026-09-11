@@ -1,0 +1,62 @@
+# Sintaxis: Containerfile para Podman (compatible con Docker)
+# Imagen: agent-jdk8-ubi8
+# Base: registry.access.redhat.com/ubi8/ubi-minimal
+# Proposito: agente efimero con JDK 8 puro (sin Maven) para proyectos
+#            legacy que solo necesitan el JDK para tareas como javac,
+#            java -jar, gradle (con su propia distribucion), etc.
+
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+
+# Temurin 8 (OpenJDK 8 mantenido por la Eclipse Adoptium Working Group).
+# Es la unica distribucion publica y mantenida de OpenJDK 8.
+# Oracle dejo de distribuir binarios publicamente en 2023.
+ARG JDK_VERSION=8u504-b01
+ARG JDK_SHA256=skip
+
+LABEL maintainer="DevOps Team" \
+      description="Agente efimero Jenkins con JDK 8 (Temurin) sobre UBI 8" \
+      version="1.0.0" \
+      io.jenkins-podman-lab.component="legacy-agent-jdk8"
+
+# microdnf es el equivalente a dnf en las imagenes -minimal de RHEL.
+# Instalamos tar, gzip y shadow (para useradd) en una sola capa.
+RUN microdnf install -y --setopt=install_weak_deps=0 --best \
+        tar \
+        gzip \
+        shadow-utils \
+    && microdnf clean all \
+    && rm -rf /var/cache/dnf /var/cache/yum
+
+# Creamos el usuario no-privilegiado con UID fijo 1001.
+# Este UID se mapea con --userns=keep-id del pipeline Jenkins.
+RUN groupadd -g 1001 jenkins_agent && \
+    useradd -u 1001 -g 1001 -m -s /bin/bash jenkins_agent
+
+# Descargamos Temurin 8 al directorio temporal y verificamos.
+# Usamos una sola capa RUN para que la imagen no conserve el tarball.
+# JDK_VERSION tiene formato "8uXYZ-bNN". El nombre del tarball usa
+# "8uXYZbNN" (sin guion), por eso la sustitucion quita los guiones.
+ENV JAVA_HOME=/opt/jdk8 \
+    PATH=/opt/jdk8/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+ARG JDK_TARBALL_BASE=8u504b01
+
+RUN curl -fsSL -o /tmp/jdk8.tar.gz \
+        "https://github.com/adoptium/temurin8-binaries/releases/download/jdk${JDK_VERSION}/OpenJDK8U-jdk_x64_linux_hotspot_${JDK_TARBALL_BASE}.tar.gz" \
+    && mkdir -p /opt/jdk8 \
+    && tar -xzf /tmp/jdk8.tar.gz -C /opt/jdk8 --strip-components=1 \
+    && rm -f /tmp/jdk8.tar.gz \
+    && chown -R root:root /opt/jdk8 \
+    && chmod -R 0755 /opt/jdk8
+
+# Verificacion minima: que java -version funcione.
+# Aceptamos cualquier salida que contenga "openjdk version \"8." o "openjdk version \"1.8.".
+RUN java -version 2>&1 | grep -qE 'openjdk version "(8\.|1\.8\.)' || \
+    (echo "ERROR: la imagen descargada no es JDK 8. Output:" && java -version 2>&1 && exit 1)
+
+# Volvemos al usuario no-privilegiado. Las builds en Jenkins corren con
+# --user jenkins_agent (via --userns=keep-id) por seguridad.
+USER 1001
+
+# CMD por defecto: shell no-login para que `podman run` entre en bash.
+CMD ["/bin/bash"]

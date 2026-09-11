@@ -1,0 +1,44 @@
+# Sintaxis: Containerfile para Podman (compatible con Docker)
+# Imagen: agent-node12-ubi8
+# Base: registry.access.redhat.com/ubi8/ubi-minimal
+# Proposito: agente efimero con Node.js 12 (EOL), para proyectos legacy
+#            Angular 10/11/12 que requieren esta version.
+
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+
+# Node.js 12.22.12: la ULTIMA version de la rama 12.x (EOL abril 2022).
+ARG NODE_VERSION=12.22.12
+
+LABEL maintainer="DevOps Team" \
+      description="Agente efimero Jenkins con Node.js 12.22.12 sobre UBI 8" \
+      version="1.0.0" \
+      io.jenkins-podman-lab.component="legacy-agent-node12"
+
+RUN microdnf install -y --setopt=install_weak_deps=0 --best \
+        tar \
+        xz \
+        gzip \
+        shadow-utils \
+        ca-certificates \
+    && microdnf clean all \
+    && rm -rf /var/cache/dnf /var/cache/yum
+
+RUN groupadd -g 1001 jenkins_agent && \
+    useradd -u 1001 -g 1001 -m -s /bin/bash jenkins_agent
+
+ENV NODE_HOME=/opt/node \
+    PATH=/opt/node/bin:/usr/local/sbin:/usr/bin:/sbin:/bin
+
+RUN curl -fSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o /tmp/node.tar.xz \
+    && mkdir -p /opt/node \
+    && tar -xJf /tmp/node.tar.xz -C /opt/node --strip-components=1 \
+    && rm -f /tmp/node.tar.xz \
+    && chown -R root:root /opt/node \
+    && chmod -R 0755 /opt/node
+
+RUN node --version | grep -q "v${NODE_VERSION}" || \
+    (echo "ERROR: version de Node incorrecta" && exit 1)
+
+USER 1001
+
+CMD ["/bin/bash"]

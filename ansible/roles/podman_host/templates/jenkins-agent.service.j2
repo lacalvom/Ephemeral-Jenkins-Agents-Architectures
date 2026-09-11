@@ -1,0 +1,12 @@
+[Unit]
+Description=Jenkins Agent Service (Podman Host Rootless)
+After=network.target
+
+[Service]
+Environment="JAVA_OPTS=-Djava.io.tmpdir={{ jenkins_tmp_dir }}"
+ExecStart=/usr/bin/java $JAVA_OPTS -jar {{ jenkins_agent_dir }}/agent.jar -url http://{{ hostvars['jenkins-controller']['ansible_host'] }}:{{ jenkins_http_port }}/ -secret @{{ jenkins_agent_secret_path }} -name {{ podman_agent_node_name }} -webSocket -workDir {{ podman_agent_workspace }}
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

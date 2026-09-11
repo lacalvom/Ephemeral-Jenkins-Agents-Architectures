@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: agent_registration
+  author: DevOps Team
+  description: Vincula el Podman Host con el Jenkins Controller creando el nodo y propagando el secret
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+  galaxy_tags: [jenkins, agent, registration]
+dependencies:
+  - role: jenkins_controller
