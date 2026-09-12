@@ -1,0 +1,24 @@
+<main class="page">
+  <header class="page__header">
+    <h1>{{ title() }}</h1>
+    <p class="page__subtitle">
+      Frontend de ejemplo (Angular 20) del pipeline de referencia de
+      <code>jenkins-podman-lab</code>
+    </p>
+  </header>
+
+  <section class="card">
+    <h2>Respuesta del backend</h2>
+
+    @if (backendError()) {
+      <p class="card__error">{{ backendError() }}</p>
+    } @else {
+      <p class="card__message">{{ backendMessage() }}</p>
+      <p class="card__timestamp">Timestamp: {{ backendTimestamp() }}</p>
+    }
+
+    @if (backendVersion()) {
+      <p class="card__version">Version del backend: {{ backendVersion() }}</p>
+    }
+  </section>
+</main>

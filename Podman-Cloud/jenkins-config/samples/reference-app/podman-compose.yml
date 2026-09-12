@@ -1,0 +1,57 @@
+# =====================================================================
+# podman-compose.yml — Entorno de prueba MANUAL de la reference-app
+# =====================================================================
+# Este fichero NO lo usa el pipeline de Jenkins (reference-pipeline.groovy
+# solo compila y empaqueta las imagenes con "podman build"). Es una
+# herramienta para que, DESPUES de correr el pipeline al menos una vez
+# en el podman-host, puedas levantar el backend y el frontend juntos y
+# probarlos manualmente desde tu navegador.
+#
+# Requisito previo: que las imagenes "reference-backend:latest" y
+# "reference-frontend:latest" existan ya en el almacen local de Podman.
+# Se crean automaticamente en cada build del pipeline (stages
+# "Empaquetar Imagen Backend/Frontend", ver reference-pipeline.groovy).
+#
+# Uso tipico, ejecutado en el podman-host (usuario jenkins, UID 1100):
+#
+#   cd /datos/jenkins/pipelines-workspace/reference-app
+#   podman compose -f podman-compose.yml up -d
+#   curl http://localhost:8080/api/hello      # backend
+#   curl http://localhost:4200/               # frontend (o desde el navegador)
+#   podman compose -f podman-compose.yml down
+#
+# El frontend llama al backend directamente desde el navegador del
+# usuario (http://localhost:8080, ver frontend/src/app/hello.service.ts),
+# no desde dentro del contenedor. Por eso el puerto 8080 del backend
+# DEBE quedar publicado en el host tal como esta configurado abajo.
+# =====================================================================
+
+services:
+  backend:
+    image: reference-backend:latest
+    container_name: reference-backend
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  frontend:
+    image: reference-frontend:latest
+    container_name: reference-frontend
+    ports:
+      - "4200:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped

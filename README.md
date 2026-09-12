@@ -67,7 +67,7 @@ licencias.
 | Lab | Estado | Notas |
 |---|---|---|
 | **Podman-Host** | **Funcional** | Laboratorio completo y probado (Jenkins Controller + Podman Host + agente + Podman Secrets). |
-| **Podman-Cloud** | En preparacion | Guia completa; el lab se implementara despues. |
+| **Podman-Cloud** | Implementado | Rootful (API + motor); Cloud `docker-plugin` con imágenes-agente híbridas + 3 drivers de secrets. Pendiente de validacion end-to-end en VMs. |
 | **Jenkins-Kubernetes** | En preparacion | Guia completa; el lab se implementara despues. |
 
 ## Documentacion

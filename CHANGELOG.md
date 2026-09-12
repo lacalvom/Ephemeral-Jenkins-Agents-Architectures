@@ -7,6 +7,27 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased] — Roadmap de evoluciones
 
+### Añadido
+
+- **Podman-Cloud: mTLS en la API de Podman.** Nuevo rol `podman_tls` que
+  genera una PKI propia (CA + certificado de servidor + certificado de
+  cliente); `podman-tcp.service` pasa a escuchar en `:2376` exigiendo
+  certificado de cliente (`--tls-client-ca`). El controller importa solo el
+  material de cliente y Jenkins lo registra como credencial X.509
+  (`DockerServerCredentials`) para la Cloud. Ver
+  [ADR-0005](./Podman-Cloud/docs/adr/0005-mtls-api-podman.md) (sustituye a
+  ADR-0003) y la guía del modelo, secciones 4.1 y 4.4.
+
+- **Podman-Cloud: `agent-podman` con herramientas Kubernetes.** La imagen añade
+  `kubectl`, `kubectx` y `kubens`, y cada `agent-images/<nombre>/` incluye su
+  propio `README.md` (build y uso).
+
+- **Podman-Cloud: consumo de secrets y kubeconfig en el pipeline.** Nueva fase
+  `Secrets y Kubernetes` en `reference-pipeline.groovy` que consume un Podman
+  Secret (`podman run --secret`, sin pasar el valor por argumentos) e inyecta
+  un kubeconfig de ejemplo vía Config File Provider (`configFileProvider` +
+  `KUBECONFIG`). El kubeconfig no se hornea en la imagen.
+
 ### Correcciones (no breaking)
 
 - **Guia de Podman-Host: montaje del socket de Podman corregido en el ejemplo.**

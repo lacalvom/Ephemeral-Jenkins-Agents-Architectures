@@ -1,0 +1,165 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Cloudsdoers
+---
+# =====================================================================
+# Variables globales del laboratorio Podman-Cloud
+# =====================================================================
+# Modelo "Cloud" (plugin docker-plugin): Jenkins aprovisiona
+# contenedores-agente bajo demanda sobre un Podman Host, seleccionables
+# por label. Ver docs/Ephemeral-Jenkins-Agents-Podman-Cloud.md.
+
+# --- Identidad del laboratorio ---
+lab_name: "podman-cloud-lab"
+lab_timezone: "Europe/Madrid"
+
+# --- Usuario de las VMs (creado por cloud-init en deploy.sh) ---
+# Por defecto, el mismo usuario que ejecuta deploy.sh/ansible.
+vm_user: "{{ lookup('env', 'VM_USER') | default(lookup('env', 'USER'), true) }}"
+# Ansible se conecta a las VMs con ese mismo usuario.
+ansible_user: "{{ vm_user }}"
+
+jenkins_user: "jenkins"
+jenkins_group: "jenkins"
+jenkins_uid: 1100
+jenkins_gid: 1100
+jenkins_home: "/home/{{ jenkins_user }}"
+jenkins_base_dir: "/datos/jenkins"
+jenkins_workspace_dir: "{{ jenkins_base_dir }}/pipelines-workspace"
+jenkins_tmp_dir: "{{ jenkins_base_dir }}/tmp"
+
+# --- Java (versión compatible con Jenkins LTS 2.568.x) ---
+java_version: "21"
+java_package_openjdk: "java-{{ java_version }}-openjdk"
+java_package_openjdk_headless: "java-{{ java_version }}-openjdk-headless"
+
+# --- Jenkins Controller ---
+jenkins_version: "2.568.3"
+jenkins_admin_user: "admin"
+# Password del admin de Jenkins. NO hay valor por defecto en el repositorio.
+# Se define en ansible/group_vars/all/vault.yml o en JENKINS_ADMIN_PASSWORD
+# del .env (deploy.sh la exporta). Si falta, el playbook falla.
+jenkins_admin_password: "{{ lookup('env', 'JENKINS_ADMIN_PASSWORD') | default('', true) }}"
+jenkins_http_port: 8080
+# Los agentes Cloud conectan por JNLP; se habilita el puerto 50000 en el
+# controller (ver ADR-008 del lab Podman-Host).
+jenkins_jnlp_port: 50000
+jenkins_controller_home: "/var/lib/jenkins"
+jenkins_service_user: "{{ jenkins_user }}"
+jenkins_service_group: "{{ jenkins_group }}"
+jenkins_repo_key_url: "https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key"
+jenkins_repo_url: "https://pkg.jenkins.io/redhat-stable"
+
+# --- Plugin Installation Manager Tool ---
+jenkins_plugin_manager_url: "https://github.com/jenkinsci/plugin-installation-manager-tool/releases/download/2.15.0/jenkins-plugin-manager-2.15.0.jar"
+jenkins_plugin_manager_jar: "/usr/local/bin/jenkins-plugin-manager.jar"
+
+# --- Artefactos de configuracion de Jenkins ---
+jenkins_config_dir: "{{ playbook_dir | dirname }}/jenkins-config"
+jenkins_config_plugins_yaml: "{{ jenkins_config_dir }}/plugins.yaml"
+jenkins_config_reference_pipeline: "{{ jenkins_config_dir }}/jobs/reference-pipeline.groovy"
+# Managed config file (Config File Provider) con un kubeconfig de EJEMPLO,
+# que el pipeline inyecta en tiempo de build para kubectl/kubectx/kubens.
+jenkins_config_kubeconfig_id: "kubeconfig-demo"
+# Nombre del secret de Podman que usa el pipeline como ejemplo de consumo.
+jenkins_config_example_secret: "api_token_prod_file"
+
+# --- Aplicaciones de ejemplo para el pipeline de referencia ---
+reference_pipeline_job_name: "reference-pipeline"
+jenkins_config_reference_app_dir: "{{ jenkins_config_dir }}/samples/reference-app"
+# Workspace real que Jenkins usara para el job. Al usar el plugin Cloud con
+# un volumen compartido, el workspace del job vive aqui en el podman-host.
+reference_app_workspace_dest: "{{ jenkins_workspace_dir }}/workspace/{{ reference_pipeline_job_name }}"
+
+# =====================================================================
+# Podman Cloud (plugin docker-plugin)
+# =====================================================================
+# Nombre de la Cloud en Jenkins.
+podman_cloud_name: "podman-cloud"
+
+# API de Podman expuesta por el podman-host (ROOTFUL) sobre TCP con mTLS.
+# El puerto 2376 es el convencional para Docker/Podman API con TLS.
+# El controller se autentica con un certificado de cliente X.509 y valida
+# el servidor con la CA del laboratorio (ver podman_tls_* y ADR-0005).
+podman_api_port: 2376
+podman_cloud_api_uri: "tcp://{{ hostvars[groups['podman_hosts'][0]]['ansible_host'] }}:{{ podman_api_port }}"
+
+# URL del controller que usaran los contenedores-agente para conectar (JNLP).
+podman_cloud_jenkins_url: "http://{{ hostvars[groups['jenkins_controllers'][0]]['ansible_host'] }}:{{ jenkins_http_port }}/"
+
+# Usuario con el que correran los contenedores. Con la API rootful, el
+# root del contenedor es root real del host, por lo que tiene permisos
+# sobre el workspace y las caches sin necesitar --userns=keep-id (que el
+# plugin docker-plugin no soporta).
+podman_cloud_user: "0"
+
+# =====================================================================
+# mTLS de la API de Podman (ver ADR-0005)
+# =====================================================================
+# El laboratorio genera su propia PKI (CA + certificado de servidor +
+# certificado de cliente). El servidor exige certificado de cliente
+# (mTLS): solo un cliente con cert firmado por la CA puede usar la API.
+podman_tls_enabled: true
+# Directorio de la PKI en el podman-host (root).
+podman_tls_dir: "/etc/podman/tls"
+# Directorio en el controller donde Ansible deja SOLO el material de
+# cliente (CA + cert + key), legible por el usuario jenkins.
+podman_tls_controller_dir: "/etc/jenkins/podman-tls"
+# ID de la credencial X.509 que se crea en Jenkins (DockerServerCredentials).
+podman_tls_credentials_id: "podman-cloud-tls"
+# Datos de los certificados.
+podman_tls_ca_cn: "podman-cloud-lab-ca"
+podman_tls_server_cn: "podman-cloud-host"
+podman_tls_client_cn: "jenkins-controller"
+podman_tls_key_size: 4096
+podman_tls_days: 3650
+# IP/DNS del podman-host para el SAN del certificado de servidor.
+podman_tls_server_ip: "{{ hostvars[groups['podman_hosts'][0]]['ansible_host'] }}"
+podman_tls_server_dns: "{{ groups['podman_hosts'][0] }}"
+
+# Plantillas de agente (una por imagen/toolchain). Los campos mounts/env/
+# security_opts se pasan al DockerTemplateBase (mountsString /
+# environmentsString / securityOptsString).
+podman_cloud_templates:
+  - name: "agent-maven-jdk17"
+    label: "maven-jdk17"
+    image: "localhost/agent-maven-jdk17:latest"
+    remote_fs: "{{ jenkins_workspace_dir }}"
+    # workspace compartido + cache de Maven (named volume)
+    mounts: "/datos/jenkins/pipelines-workspace:/datos/jenkins/pipelines-workspace\nmaven-cache:/cache/.m2"
+    env: "MAVEN_OPTS=-Dmaven.repo.local=/cache/.m2/repository"
+    security_opts: ""
+  - name: "agent-node20"
+    label: "node20"
+    image: "localhost/agent-node20:latest"
+    remote_fs: "{{ jenkins_workspace_dir }}"
+    mounts: "/datos/jenkins/pipelines-workspace:/datos/jenkins/pipelines-workspace\nnpm-cache:/cache/.npm"
+    env: ""
+    security_opts: ""
+  - name: "agent-podman"
+    label: "podman-build"
+    image: "localhost/agent-podman:latest"
+    remote_fs: "{{ jenkins_workspace_dir }}"
+    # ademas del workspace, monta el socket rootful de Podman del host para
+    # construir imagenes (Podman-out-of-Podman).
+    mounts: "/datos/jenkins/pipelines-workspace:/datos/jenkins/pipelines-workspace\n/run/podman/podman.sock:/run/podman/podman.sock"
+    env: "CONTAINER_HOST=unix:///run/podman/podman.sock"
+    # contenido de sistema (socket): desactiva SELinux para ese contenedor.
+    security_opts: "label=disable"
+
+# --- Imagenes-agente (se construyen en el podman-host con podman build) ---
+agent_images_dir: "{{ playbook_dir | dirname }}/agent-images"
+agent_images:
+  - name: "agent-maven-jdk17"
+  - name: "agent-node20"
+  - name: "agent-podman"
+
+# =====================================================================
+# Podman Secrets (mismos 3 drivers que en el lab Podman-Host)
+# =====================================================================
+# Ver roles/podman_secrets_tooling. Se crean a nivel de sistema (root).
+enabled_drivers: [file, pass, shell]
+create_example_secrets: true
+
+# --- SELinux ---
+selinux_state: "enforcing"
+selinux_policy: "targeted"

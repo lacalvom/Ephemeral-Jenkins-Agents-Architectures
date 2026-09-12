@@ -50,7 +50,8 @@ del agente** (infraestructura), no en el código del pipeline.
 
 ## 2. Los tres modelos de agentes en Jenkins
 
-1. **Podman-Host — Pipeline + `docker-workflow`**. Es el modelo del laboratorio **Podman-Host**, el unico implementado por ahora.
+1. **Podman-Host — Pipeline + `docker-workflow`**. Es el modelo del laboratorio
+   **Podman-Host**.
    `agent { docker { image '...'; reuseNode true; args '...' } }`. El plugin
    ejecuta `docker run` y luego **`docker exec`** cada paso dentro del
    contenedor. No hay agente dentro del contenedor: la "inteligencia" está en
@@ -122,68 +123,108 @@ Puntos clave:
 
 ## 4. Infraestructura necesaria (Podman Host)
 
-### 4.1 Exponer la API de Podman
+### 4.1 Exponer la API de Podman (ROOTFUL)
 
-La socket unit que ya usamos (`podman.socket` del usuario `jenkins`, ver
-ADR-010) escucha en un **socket Unix**:
-`/run/user/1100/podman/podman.sock`. La API incluye una **capa compatible
-Docker v1.40** + la capa libpod. Hay tres formas de que el controller la use:
+En este modelo la API de Podman corre **rootful** (servicio de sistema). El
+socket Unix por defecto es `/run/podman/podman.sock`, y hay que exponerlo en
+**TCP** para que el controller lo alcance. La API incluye una **capa compatible
+Docker v1.40** + la capa libpod. Formas de que el controller la use:
 
 | Método | URI en la Cloud | Cuándo usarlo | Seguridad |
 |---|---|---|---|
-| Socket Unix local | `unix:///run/user/1100/podman/podman.sock` | Solo si Jenkins y Podman están en la **misma máquina** | Alta (permisos de fichero) |
-| **TCP + mTLS** | `tcp://192.168.122.21:2376` + credencial X.509 | Remoto, producción | Alta (requiere certs) |
-| **TCP sin TLS** | `tcp://192.168.122.21:2375` | Laboratorio en red aislada | **Baja** (ver aviso) |
-| Túnel SSH | `tcp://127.0.0.1:2375` (tubería) o `unix://` reenviado | Remoto, sin tocar la red de Podman | Alta |
+| Socket Unix local | `unix:///run/podman/podman.sock` | Solo si Jenkins y Podman están en la **misma máquina** | Alta |
+| **TCP + mTLS** | `tcp://192.168.122.31:2376` + credencial X.509 | Remoto, producción | Alta (requiere certs) |
+| **TCP sin TLS** | `tcp://192.168.122.31:2375` | Solo depuración en red aislada | **Baja** (ver aviso) |
+| Túnel SSH | `unix://` reenviado (o `tcp://127.0.0.1:2376`) | Remoto, sin abrir TCP | Alta |
 
 > ⚠️ **La documentación de Podman es explícita**: la API "concede acceso
 > completo a toda la funcionalidad de Podman y por tanto permite ejecución
 > arbitraria de código como el usuario que corre la API". Recomienda **no
 > exponerla por red sin mTLS** y, si se necesita acceso remoto, **reenviar el
-> socket por SSH**. Para este laboratorio (red `192.168.122.0/24` aislada)
-> TCP sin TLS es aceptable *a sabiendas*, pero no lo copies a producción.
+> socket por SSH**.
 
-**Ejemplo — exponer rootless en TCP (solo laboratorio).** Override de la
-socket unit del usuario `jenkins`:
+**En el laboratorio se usa TCP + mTLS** (`tcp://192.168.122.31:2376`, ver
+[ADR-0005](./adr/0005-mtls-api-podman.md)). En el `podman-host` se levanta un
+servicio systemd aparte (`podman-tcp.service`) que ejecuta:
 
 ```ini
-# ~jenkins/.config/systemd/user/podman.socket.d/override.conf
-[Socket]
-ListenStream=
-ListenStream=0.0.0.0:2375
+[Service]
+ExecStart=/usr/bin/podman system service --time=0 \
+  --tls-cert=/etc/podman/tls/server-cert.pem \
+  --tls-key=/etc/podman/tls/server-key.pem \
+  --tls-client-ca=/etc/podman/tls/ca.pem \
+  tcp://0.0.0.0:2376
 ```
 
-```bash
-sudo -u jenkins XDG_RUNTIME_DIR=/run/user/1100 systemctl --user daemon-reload
-sudo -u jenkins XDG_RUNTIME_DIR=/run/user/1100 systemctl --user restart podman.socket
-# comprobar
-curl -s http://192.168.122.21:2375/_ping   # -> OK
-```
+El flag `--tls-client-ca` es lo que hace la conexión **mutua (mTLS)**: además
+de que el cliente valide el servidor, el servidor **exige** al cliente un
+certificado firmado por la CA del laboratorio. En Jenkins, la Cloud referencia
+la credencial X.509 (`DockerServerCredentials`) con el material de cliente.
 
-**Ejemplo — TCP con mTLS (recomendado si no usas túnel):** generar CA + cert
-de servidor + cert de cliente y arrancar el servicio como
-`podman system service --tls-cert ... --tls-key ... --tls-client-ca ... tcp://0.0.0.0:2376`.
-En Jenkins, la Cloud admite una **credencial "X.509 Client Certificate"** con
-el CA, el cert y la clave.
+Se usa un servicio **aparte** (y no se overridea `podman.socket`) para
+mantener a la vez el socket Unix rootful `/run/podman/podman.sock`, que montan
+los contenedores-agente que empaquetan imágenes (`podman system service` no
+admite más de un socket por proceso).
 
-**Ejemplo — túnel SSH (alternativa robusta):** desde el controller, mantener
-una tubería al socket del podman-host y apuntar la Cloud a `localhost`:
+**Alternativa — túnel SSH:** desde el controller, mantener una tubería al
+socket rootful del podman-host y apuntar la Cloud a `unix://` reenviado. Útil
+si prefieres no exponer ningún puerto TCP; en ese caso puedes desactivar la
+PKI con `podman_tls_enabled: false`.
 
-```bash
-# en el controller (systemd unit o autossh), reenvía el socket Unix remoto
-ssh -N -L /run/podman-remote/podman.sock:/run/user/1100/podman/podman.sock \
-    jenkins@192.168.122.21
-# Cloud URI: unix:///run/podman-remote/podman.sock
-```
+### 4.2 Rootful vs rootless: por qué rootful en este modelo
 
-(El reenvío de sockets Unix requiere OpenSSH reciente; si no, reenvía el
-puerto TCP del socket al `localhost` del controller.)
+En el modelo Cloud, quien corre la **API** decide en qué contexto corren los
+contenedores y qué "ve" el daemon (store, secrets, permisos). Comparativa:
 
-### 4.2 El resto ya lo tienes
+| Aspecto | **Rootful** (API = root) | Rootless (API = jenkins) |
+|---|---|---|
+| **Podman Secrets (3 drivers)** | Ve el **store de sistema** (donde los crea el rol) → `--secret` en plantillas funciona directo | Ve el store del usuario jenkins; los secrets de sistema **NO** se ven |
+| **Permisos workspace/cachés** | Fácil (root del contenedor = root real) | Requiere `user: 0` (rootless mapea a jenkins) o `--userns=keep-id`, que el plugin **no soporta** |
+| **Semántica para el plugin** | Es lo más parecido a un daemon Docker (rootful), para el que se diseñó `docker-plugin` | Más casos límite en la API |
+| **Aislamiento** | Menor (los agentes pueden ser root) | Mayor (user namespaces) |
+| **Coherencia con el lab Podman-Host** | Diverge (aquel es rootless) | Coherente con el discurso rootless |
 
-- `podman.socket` del usuario `jenkins` (ADR-010).
-- `loginctl enable-linger jenkins`.
+**Decisión: rootful.** Es lo que mejor encaja con el `docker-plugin` y con los
+**Podman Secrets** del laboratorio, y elimina la fricción de permisos. El coste
+es menos aislamiento, aceptable en la red aislada del lab. El lab **Podman-Host
+se mantiene rootless** (ahí `--userns=keep-id` sí funciona a nivel de pipeline),
+de modo que los dos labs ilustran los dos enfoques.
+
+### 4.3 El resto ya lo tienes
+
+- `podman.socket` **rootful** → `/run/podman/podman.sock`.
 - La red de libvirt permite controller→podman-host.
+
+### 4.4 Certificados TLS (la PKI del laboratorio)
+
+El laboratorio **genera su propia PKI** en el `podman-host` (rol
+`podman_tls`), para que la API quede protegida por mTLS sin depender de una CA
+externa. Se crean cuatro piezas:
+
+| Fichero | Quién lo usa | Contenido |
+|---|---|---|
+| `ca.pem` / `ca-key.pem` | CA del laboratorio | Firme de servidor y cliente. **La clave de la CA nunca sale del host** |
+| `server-cert.pem` / `server-key.pem` | `podman-tcp.service` | `CN=podman-cloud-host`, con SAN de IP y DNS del host |
+| `client-cert.pem` / `client-key.pem` | Jenkins Controller | `CN=jenkins-controller` |
+
+El flujo es:
+
+1. **Fase 2** del `site.yml` genera la PKI en el `podman-host`
+   (`/etc/podman/tls`, `0700`, claves `0600`).
+2. **Fase 3** (rol `jenkins_controller`) copia **solo el material de cliente**
+   (`ca.pem`, `client-cert.pem`, `client-key.pem`) a
+   `/etc/jenkins/podman-tls` (propiedad de `jenkins`, `0700`). Se lee del
+   `podman-host` con `slurp` delegado; el material no se versiona.
+3. El script `init.groovy.d/00-create-docker-credentials.groovy` crea en
+   Jenkins la credencial `DockerServerCredentials` (`podman-cloud-tls`) a
+   partir de esos ficheros.
+4. `create-cloud.groovy` monta la Cloud con
+   `DockerServerEndpoint("tcp://…:2376", "podman-cloud-tls")`.
+
+> **Rotación:** para regenerar la PKI, borra `/etc/podman/tls` en el
+> `podman-host` y vuelve a ejecutar `deploy.sh` (las tareas usan `creates:`).
+> Si cambia la IP del `podman-host`, hay que regenerarla también, porque el SAN
+> del certificado de servidor la incluye.
 
 ---
 
@@ -229,14 +270,19 @@ USER jenkins
 ### 5.2 Agente que además construye imágenes (Podman-out-of-Podman)
 
 Si el stage empaqueta imágenes, el contenedor-agente necesita la **API de
-Podman del host** dentro. Igual que en Podman-Host:
+Podman del host** dentro:
 
-- montar el socket en la plantilla (`/run/user/1100/podman/podman.sock`),
-- `--security-opt label=disable` (SELinux, ver ADR-011),
-- `DOCKER_HOST`/`CONTAINER_HOST` apuntando al socket montado.
+- montar el socket **rootful** `/run/podman/podman.sock` en la plantilla,
+- `--security-opt label=disable` (SELinux, ver ADR-011 de Podman-Host),
+- `CONTAINER_HOST=unix:///run/podman/podman.sock` en el entorno de la plantilla.
 
 En Podman-Cloud esto se pone en la **plantilla**, no en el pipeline. Además
 puedes activar **"Expose DOCKER_HOST"** en la Cloud.
+
+La imagen `agent-podman` de este laboratorio añade, además de Podman, las
+herramientas **`kubectl`, `kubectx` y `kubens`** para operar contra clústeres
+Kubernetes desde el pipeline. El **kubeconfig no se hornea** en la imagen: se
+inyecta en tiempo de build con un *Managed Config File* (ver sección 10).
 
 ---
 
@@ -252,8 +298,10 @@ puedes activar **"Expose DOCKER_HOST"** en la Cloud.
 > **Podman Host**.
 
 - **Docker Cloud details**
-  - *Docker Host URI*: `tcp://192.168.122.21:2375` (o `unix://...`, o con TLS).
-  - *Server credentials*: solo si usas mTLS.
+  - *Docker Host URI*: `tcp://192.168.122.31:2376` (o `unix://...`; sin TLS
+    solo para depurar).
+  - *Server credentials*: la credencial X.509 (`podman-cloud-tls`) cuando usas
+    mTLS (es lo recomendado y lo que hace este laboratorio).
   - *Expose DOCKER_HOST*: útil para construir imágenes.
   - *Container Cap*: nº máximo de contenedores simultáneos.
 - **Docker Agent templates → Add Docker Template**, con campos como:
@@ -273,20 +321,21 @@ A partir del ejemplo oficial del `docker-plugin`, adaptado a este lab:
 jenkins:
   clouds:
   - docker:
-      name: "podman-host"
+      name: "podman-cloud"
       containerCap: 10
-      # Socket rootless del usuario jenkins (sin TLS: laboratorio aislado)
+      # API rootful con mTLS: URI en :2376 + credencial X.509
       dockerApi:
         dockerHost:
-          uri: "tcp://192.168.122.21:2375"
+          uri: "tcp://192.168.122.31:2376"
+          credentialsId: "podman-cloud-tls"
       templates:
       - name: "maven-jdk17"
         labelString: "maven maven-jdk17"
         remoteFs: "/datos/jenkins/pipelines-workspace"
         connector:
           jnlp:
-            jenkinsUrl: "http://192.168.122.20:8080/"
-            user: "1100"
+            jenkinsUrl: "http://192.168.122.30:8080/"
+            user: "0"
         dockerTemplateBase:
           image: "localhost/agent-maven-jdk17:latest"
           pullStrategy: "NEVER"
@@ -301,8 +350,8 @@ jenkins:
         remoteFs: "/datos/jenkins/pipelines-workspace"
         connector:
           jnlp:
-            jenkinsUrl: "http://192.168.122.20:8080/"
-            user: "1100"
+            jenkinsUrl: "http://192.168.122.30:8080/"
+            user: "0"
         dockerTemplateBase:
           image: "localhost/agent-node20:latest"
           pullStrategy: "NEVER"
@@ -315,8 +364,8 @@ jenkins:
         remoteFs: "/datos/jenkins/pipelines-workspace"
         connector:
           jnlp:
-            jenkinsUrl: "http://192.168.122.20:8080/"
-            user: "1100"
+            jenkinsUrl: "http://192.168.122.30:8080/"
+            user: "0"
         dockerTemplateBase:
           image: "localhost/agent-podman:latest"
           pullStrategy: "NEVER"
@@ -484,6 +533,47 @@ pipeline {
 }
 ```
 
+### 10.1 Consumo de secrets y kubeconfig en el pipeline
+
+El pipeline real (`jenkins-config/jobs/reference-pipeline.groovy`) añade una
+fase que ilustra dos buenas prácticas sobre el agente `podman-build`:
+
+```groovy
+stage('Secrets y Kubernetes') {
+    agent { label 'podman-build' }
+    steps {
+        // El kubeconfig se inyecta como fichero temporal y se exporta la
+        // variable KUBECONFIG; NO se hornea en la imagen del agente.
+        configFileProvider([configFile(fileId: 'kubeconfig-demo',
+                                        variable: 'KUBECONFIG')]) {
+            sh '''
+                # Consumo de un Podman Secret: el motor lo monta como
+                # fichero en /run/secrets/<nombre>, sin pasarlo por argv.
+                podman run --rm --secret api_token_prod_file \
+                    docker.io/library/alpine:3.20 \
+                    sh -c 'cat /run/secrets/api_token_prod_file'
+
+                # Herramientas Kubernetes con el kubeconfig inyectado:
+                kubectl config get-contexts
+                kubectx
+            '''
+        }
+    }
+}
+```
+
+Puntos clave:
+
+- **Secrets**: los Podman Secrets viven en el store **rootful** del
+  `podman-host`; como el agente monta su socket, `podman run --secret` los ve.
+  El pipeline **no recibe el valor**: el motor lo monta como fichero.
+- **kubeconfig**: se define una sola vez como *Managed Config File*
+  (`configFileProvider`) y el pipeline lo recibe como variable `KUBECONFIG`.
+  Rotar credenciales del clúster no obliga a reconstruir la imagen del agente.
+  El `kubeconfig-demo` del laboratorio es un **ejemplo sin credenciales
+  reales**; sustitúyelo por el de tu clúster (o crea un *Secret file* con el
+  kubeconfig real y cambia el `fileId`).
+
 Diferencias con el pipeline de Podman-Host:
 - No hay `configFileProvider(...)` para settings de Maven/npm si decides
   hornear la config en la imagen del agente (o puedes seguir usándolo).
@@ -551,7 +641,8 @@ Diferencias con el pipeline de Podman-Host:
 
 ## 12. Checklist para migrar el laboratorio a Podman-Cloud
 
-1. Exponer la API de Podman (SSH-tunnel o TCP+TLS; TCP sin TLS solo en lab).
+1. Exponer la API de Podman con **mTLS** (o túnel SSH). En este laboratorio ya
+   viene así: PKI propia + `podman-tcp.service` en `:2376` (ver ADR-0005).
 2. Añadir la Cloud en Jenkins (UI o JCasC) apuntando a esa URI; **Test
    Connection**.
 3. Construir las **imágenes-agente híbridas** (`agent-maven-jdk17`,
@@ -569,8 +660,8 @@ Diferencias con el pipeline de Podman-Host:
    tres plantillas (para que los stages se pasen los artefactos).
 7. Probar: forzar cada label, comprobar `/computer`, verificar que el
    workspace persiste y que las cachés se reutilizan.
-8. Endurecer: TLS en la API, `containerCap`, *idle timeout* razonable,
-   limpieza de contenedores huérfanos.
+8. Endurecer: TLS en la API (ya por defecto), `containerCap`, *idle timeout*
+   razonable, limpieza de contenedores huérfanos.
 
 ---
 
@@ -591,6 +682,22 @@ Diferencias con el pipeline de Podman-Host:
   volumen distinto por agente.
 - **Contenedores que se acumulan**: ajusta *Idle timeout* / *Container Cap* y
   limpia con `podman container prune`.
+- **`PKIX path building failed` / `certificate signed by unknown authority`**:
+  la credencial X.509 no se creó o la Cloud no la referencia. Revisa que
+  `00-create-docker-credentials.groovy` aparece como `DOCKER_CREDENTIAL_CREATED`
+  en el log de Jenkins y que `JENKINS_PODMAN_CLOUD_TLS_CREDENTIALS` está
+  definida (ver ADR-0005). Si cambió la IP del `podman-host`, regenera la PKI
+  (el SAN del certificado de servidor incluye la IP).
+- **`no such file or directory` al leer `/etc/jenkins/podman-tls/…`**: Ansible
+  no copió el material de cliente (Fase 3 antes que Fase 2) o el usuario
+  jenkins no puede leerlo. Revisa permisos (`0700` dir, `0600` key).
+- **`kubectl` responde `no configuration` / `error: current-context`**: el
+  pipeline no inyectó el kubeconfig. Comprueba que el Managed File
+  `kubeconfig-demo` existe (Config File Provider) y que el stage envuelve el
+  `sh` en `configFileProvider([configFile(... variable: 'KUBECONFIG')])`.
+- **El secret no aparece en `/run/secrets`**: el agente `podman-build` no monta
+  el socket rootful (revisa los `mounts` de la plantilla) o el secret no existe
+  (`create_example_secrets: true` en `vars.yml`).
 
 ---
 
@@ -608,6 +715,12 @@ Diferencias con el pipeline de Podman-Host:
   https://github.com/jenkinsci/configuration-as-code-plugin/tree/master/demos/docker
 - Guia principal del laboratorio Podman-Host:
   [`Ephemeral-Jenkins-Agents-Podman-host.md`](../../Podman-Host/docs/Ephemeral-Jenkins-Agents-Podman-host.md)
+- ADRs del lab Podman-Cloud:
+  [ADR-0001](./adr/0001-rootful-api-y-motor.md),
+  [ADR-0002](./adr/0002-imagenes-agente-hibridas.md),
+  [ADR-0003](./adr/0003-api-tcp-sin-tls.md) (sustituido por ADR-0005),
+  [ADR-0004](./adr/0004-aprovisionamiento-via-cloud.md),
+  [ADR-0005](./adr/0005-mtls-api-podman.md) (mTLS).
 - ADRs relacionados (del lab Podman-Host):
   [ADR-005](../../Podman-Host/docs/adr/0005-podman-secrets-como-root.md) (secrets root),
   [ADR-009](../../Podman-Host/docs/adr/0009-reference-app-sin-scm.md) (app de referencia sin SCM),

@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Cloudsdoers
+# =====================================================================
+# agent-podman — agente Jenkins con Podman + herramientas Kubernetes
+# =====================================================================
+# Imagen-agente hibrida para:
+#   - empaquetar imagenes de aplicacion (podman build) usando el motor
+#     del HOST a traves del socket que monta la plantilla (CONTAINER_HOST);
+#   - operar contra un cluster Kubernetes con kubectl/kubectx/kubens
+#     (el kubeconfig se inyecta en tiempo de build del pipeline, no aqui).
+# =====================================================================
+FROM docker.io/jenkins/inbound-agent:latest-jdk17
+
+USER root
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl git jq gzip podman \
+ && rm -rf /var/lib/apt/lists/*
+
+# kubectl (cliente oficial de Kubernetes)
+RUN KUBECTL_VERSION="$(curl -fsSL https://dl.k8s.io/release/stable.txt)" \
+ && curl -fsSL -o /usr/local/bin/kubectl \
+      "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
+ && chmod +x /usr/local/bin/kubectl
+
+# kubectx y kubens (cambio rapido de contexto/namespace)
+RUN git clone --depth 1 https://github.com/ahmetb/kubectx /opt/kubectx \
+ && ln -s /opt/kubectx/kubectx /usr/local/bin/kubectx \
+ && ln -s /opt/kubectx/kubens /usr/local/bin/kubens \
+ && rm -rf /opt/kubectx/.git
+
+USER jenkins

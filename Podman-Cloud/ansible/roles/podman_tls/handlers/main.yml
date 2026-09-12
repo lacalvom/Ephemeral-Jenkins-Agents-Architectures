@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Cloudsdoers
+---
+# Sin handlers: la PKI se genera una sola vez (creates:) y su rotacion es
+# manual (borrar /etc/podman/tls y relanzar el playbook).

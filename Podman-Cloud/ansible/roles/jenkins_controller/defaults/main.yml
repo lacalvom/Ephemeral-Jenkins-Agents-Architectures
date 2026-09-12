@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Cloudsdoers
+---
+jenkins_controller_required_packages:
+  - "{{ java_package_openjdk_headless }}"
+  - "{{ java_package_openjdk }}"
+  - fontconfig
+  - python3-pip

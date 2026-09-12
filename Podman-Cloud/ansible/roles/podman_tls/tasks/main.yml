@@ -1,0 +1,156 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Cloudsdoers
+---
+# =====================================================================
+# podman_tls — PKI propia del laboratorio (CA + servidor + cliente)
+# =====================================================================
+# Genera en el podman-host una CA y los certificados X.509 que usa la
+# API de Podman para mTLS (ver ADR-0005):
+#   - ca.pem / ca-key.pem            -> CA del laboratorio
+#   - server-cert.pem / server-key.pem -> lo usa podman-tcp.service
+#   - client-cert.pem / client-key.pem -> lo usa el Jenkins Controller
+#
+# El material de cliente (CA + cert + key) se copia despues al controller
+# (rol jenkins_controller), NUNCA la clave de la CA.
+#
+# Se usa "openssl" por CLI (en vez de community.crypto) para no anadir
+# dependencias de colecciones al laboratorio. Idempotente via "creates:".
+# =====================================================================
+
+- name: "podman_tls | Instalar openssl"
+  ansible.builtin.dnf:
+    name: openssl
+    state: present
+    update_cache: false
+
+- name: "podman_tls | Crear directorio de la PKI"
+  ansible.builtin.file:
+    path: "{{ podman_tls_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: podman_tls_enabled | bool
+
+# =====================================================================
+# CA
+# =====================================================================
+- name: "podman_tls | Generar clave y certificado de la CA"
+  ansible.builtin.command: >-
+    openssl req -x509 -newkey rsa:{{ podman_tls_key_size }} -nodes
+    -keyout {{ podman_tls_dir }}/ca-key.pem
+    -out {{ podman_tls_dir }}/ca.pem
+    -days {{ podman_tls_days }}
+    -subj "/CN={{ podman_tls_ca_cn }}"
+    -addext "basicConstraints=critical,CA:TRUE"
+  args:
+    creates: "{{ podman_tls_dir }}/ca.pem"
+  when: podman_tls_enabled | bool
+
+- name: "podman_tls | Proteger la clave de la CA (0600)"
+  ansible.builtin.file:
+    path: "{{ podman_tls_dir }}/ca-key.pem"
+    owner: root
+    group: root
+    mode: "0600"
+  when: podman_tls_enabled | bool
+
+# =====================================================================
+# Certificado de servidor (lo usa la API de Podman)
+# =====================================================================
+- name: "podman_tls | Crear clave y CSR del certificado de servidor"
+  ansible.builtin.command: >-
+    openssl req -newkey rsa:{{ podman_tls_key_size }} -nodes
+    -keyout {{ podman_tls_dir }}/server-key.pem
+    -out {{ podman_tls_dir }}/server.csr
+    -subj "/CN={{ podman_tls_server_cn }}"
+  args:
+    creates: "{{ podman_tls_dir }}/server-key.pem"
+  when: podman_tls_enabled | bool
+
+- name: "podman_tls | Desplegar extensiones del certificado de servidor"
+  ansible.builtin.template:
+    src: server-ext.cnf.j2
+    dest: "{{ podman_tls_dir }}/server-ext.cnf"
+    owner: root
+    group: root
+    mode: "0644"
+  when: podman_tls_enabled | bool
+
+- name: "podman_tls | Firmar el certificado de servidor con la CA"
+  ansible.builtin.command: >-
+    openssl x509 -req -sha256
+    -in {{ podman_tls_dir }}/server.csr
+    -CA {{ podman_tls_dir }}/ca.pem
+    -CAkey {{ podman_tls_dir }}/ca-key.pem
+    -CAcreateserial
+    -out {{ podman_tls_dir }}/server-cert.pem
+    -days {{ podman_tls_days }}
+    -extfile {{ podman_tls_dir }}/server-ext.cnf
+  args:
+    creates: "{{ podman_tls_dir }}/server-cert.pem"
+  when: podman_tls_enabled | bool
+
+- name: "podman_tls | Proteger la clave del servidor (0600)"
+  ansible.builtin.file:
+    path: "{{ podman_tls_dir }}/server-key.pem"
+    owner: root
+    group: root
+    mode: "0600"
+  when: podman_tls_enabled | bool
+
+# =====================================================================
+# Certificado de cliente (lo usa el Jenkins Controller)
+# =====================================================================
+- name: "podman_tls | Crear clave y CSR del certificado de cliente"
+  ansible.builtin.command: >-
+    openssl req -newkey rsa:{{ podman_tls_key_size }} -nodes
+    -keyout {{ podman_tls_dir }}/client-key.pem
+    -out {{ podman_tls_dir }}/client.csr
+    -subj "/CN={{ podman_tls_client_cn }}"
+  args:
+    creates: "{{ podman_tls_dir }}/client-key.pem"
+  when: podman_tls_enabled | bool
+
+- name: "podman_tls | Desplegar extensiones del certificado de cliente"
+  ansible.builtin.template:
+    src: client-ext.cnf.j2
+    dest: "{{ podman_tls_dir }}/client-ext.cnf"
+    owner: root
+    group: root
+    mode: "0644"
+  when: podman_tls_enabled | bool
+
+- name: "podman_tls | Firmar el certificado de cliente con la CA"
+  ansible.builtin.command: >-
+    openssl x509 -req -sha256
+    -in {{ podman_tls_dir }}/client.csr
+    -CA {{ podman_tls_dir }}/ca.pem
+    -CAkey {{ podman_tls_dir }}/ca-key.pem
+    -CAcreateserial
+    -out {{ podman_tls_dir }}/client-cert.pem
+    -days {{ podman_tls_days }}
+    -extfile {{ podman_tls_dir }}/client-ext.cnf
+  args:
+    creates: "{{ podman_tls_dir }}/client-cert.pem"
+  when: podman_tls_enabled | bool
+
+- name: "podman_tls | Proteger la clave del cliente (0600)"
+  ansible.builtin.file:
+    path: "{{ podman_tls_dir }}/client-key.pem"
+    owner: root
+    group: root
+    mode: "0600"
+  when: podman_tls_enabled | bool
+
+# =====================================================================
+# Resumen
+# =====================================================================
+- name: "podman_tls | Resumen de la PKI generada"
+  ansible.builtin.debug:
+    msg:
+      - "PKI TLS generada en {{ podman_tls_dir }} (host {{ inventory_hostname }})"
+      - "  CA:     ca.pem"
+      - "  Server: server-cert.pem (CN={{ podman_tls_server_cn }}, SAN IP={{ podman_tls_server_ip }})"
+      - "  Client: client-cert.pem (CN={{ podman_tls_client_cn }})"
+  when: podman_tls_enabled | bool

@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Cloudsdoers
+# =====================================================================
+# podman-tcp.service — API de Podman ROOTFUL sobre TCP con mTLS
+# =====================================================================
+# El plugin docker-plugin del Jenkins Controller necesita hablar con la
+# API de Podman del host. Aqui se expone en TCP y, cuando
+# podman_tls_enabled=true (por defecto), con mTLS:
+#   --tls-cert       certificado de servidor (CN=podman-cloud-host)
+#   --tls-key        clave privada del servidor
+#   --tls-client-ca  CA con la que se exige y valida el certificado del
+#                    cliente (por eso es "mTLS": sin cert de cliente
+#                    firmado por la CA, la conexion se rechaza).
+#
+# La PKI la genera el rol podman_tls (ver ADR-0005). Si
+# podman_tls_enabled=false el servicio arranca en claro (NO recomendado;
+# solo para depurar en la red aislada del laboratorio).
+#
+# Es ROOTFUL (servicio de sistema, corre como root): asi los contenedores
+# que aprovisiona la Cloud ven el store de sistema (incluidos los Podman
+# Secrets del lab) y no hay problemas de permisos. Ver ADR-0001.
+#
+# Se usa un servicio APARTE (no se overridea el podman.socket vendor)
+# para poder mantener a la vez el socket Unix rootful
+# (/run/podman/podman.sock), que montan los contenedores-agente que
+# empaquetan imagenes. `podman system service` no admite mas de un
+# socket por proceso, por eso son dos servicios.
+# =====================================================================
+[Unit]
+Description=Podman API Service (TCP+mTLS, rootful) para Jenkins Podman-Cloud
+After=network.target
+
+[Service]
+Type=simple
+# --time=0: sin timeout de inactividad (servicio permanente).
+ExecStart=/usr/bin/podman system service --time=0 {% if podman_tls_enabled | bool %}--tls-cert={{ podman_tls_dir }}/server-cert.pem --tls-key={{ podman_tls_dir }}/server-key.pem --tls-client-ca={{ podman_tls_dir }}/ca.pem {% endif %}tcp://0.0.0.0:{{ podman_api_port }}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

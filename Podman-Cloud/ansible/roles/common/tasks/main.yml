@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Cloudsdoers
+---
+- name: "common | Establecer zona horaria {{ lab_timezone }}"
+  community.general.timezone:
+    name: "{{ lab_timezone }}"
+
+- name: "common | Crear grupo {{ jenkins_group }} (GID {{ jenkins_gid }})"
+  ansible.builtin.group:
+    name: "{{ jenkins_group }}"
+    gid: "{{ jenkins_gid }}"
+    state: present
+
+- name: "common | Crear usuario {{ jenkins_user }} (UID {{ jenkins_uid }})"
+  ansible.builtin.user:
+    name: "{{ jenkins_user }}"
+    uid: "{{ jenkins_uid }}"
+    group: "{{ jenkins_group }}"
+    home: "{{ jenkins_home }}"
+    shell: /bin/bash
+    create_home: true
+    state: present
+
+- name: "common | Otorgar sudo NOPASSWD al usuario {{ jenkins_user }}"
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ jenkins_user }}"
+    content: "{{ jenkins_user }} ALL=(ALL) NOPASSWD:ALL"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"
+
+- name: "common | Crear paths base bajo {{ jenkins_base_dir }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ jenkins_user }}"
+    group: "{{ jenkins_group }}"
+    mode: "0755"
+  loop:
+    - "{{ jenkins_base_dir }}"
+    - "{{ jenkins_workspace_dir }}"
+    - "{{ jenkins_tmp_dir }}"
+
+- name: "common | Instalar paquetes base"
+  ansible.builtin.dnf:
+    name: "{{ common_required_packages }}"
+    state: present
+    update_cache: false
+
+- name: "common | Habilitar y arrancar sshd"
+  ansible.builtin.service:
+    name: sshd
+    state: started
+    enabled: true

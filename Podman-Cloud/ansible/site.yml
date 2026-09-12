@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Cloudsdoers
+---
+# =====================================================================
+# Playbook principal del laboratorio Podman-Cloud
+# =====================================================================
+# Modelo "Cloud" (plugin docker-plugin): el Jenkins Controller aprovisiona
+# contenedores-agente bajo demanda sobre el Podman Host, via la API de
+# Podman. NO hay agente JNLP permanente (a diferencia de Podman-Host).
+#
+# Fases (en orden estricto):
+#   1. common                  -> Base comun en Controller y Podman Host
+#   2. podman_tls              -> Genera la PKI (CA + cert servidor/cliente)
+#                                 para mTLS de la API de Podman; debe ir
+#                                 ANTES del controller, que importa el cert
+#                                 de cliente
+#   3. jenkins_controller      -> Instala Jenkins LTS + docker-plugin,
+#                                 importa el material TLS y configura la Cloud
+#   4. podman_host             -> Instala Podman, expone la API (mTLS),
+#                                 construye las imagenes-agente y copia la app
+#   5. podman_secrets_tooling  -> Instala el tooling y configura los 3 drivers
+#                                 de Podman Secrets (file/pass/shell)
+# =====================================================================
+
+- name: "Fase 1 · Configuración base común (Controller y Podman Host)"
+  hosts: jenkins_lab
+  become: true
+  roles:
+    - common
+
+- name: "Fase 2 · PKI TLS del laboratorio (CA + certificados)"
+  hosts: podman_hosts
+  become: true
+  roles:
+    - podman_tls
+
+- name: "Fase 3 · Despliegue del Jenkins Controller (docker-plugin + Cloud mTLS)"
+  hosts: jenkins_controllers
+  become: true
+  roles:
+    - jenkins_controller
+
+- name: "Fase 4 · Despliegue del Podman Host (API mTLS + imagenes-agente)"
+  hosts: podman_hosts
+  become: true
+  roles:
+    - podman_host
+
+# =====================================================================
+# Fase 5 · Podman Secrets Tooling
+# =====================================================================
+# Los mismos 3 drivers que en el lab Podman-Host (file, pass, shell), a
+# nivel de sistema (root). Ver la guia de Podman-Host y el rol
+# roles/podman_secrets_tooling para las limitaciones conocidas:
+#   - 'pass' genera la clave GPG; el secret cifrado puede requerir TTY.
+#   - 'crypta' (driver shell) no es compatible con la glibc de AlmaLinux 9;
+#     en su lugar se usa un script propio con sops+age.
+- name: "Fase 5 · Podman Secrets Tooling (drivers file/pass/shell)"
+  hosts: podman_hosts
+  become: true
+  roles:
+    - podman_secrets_tooling

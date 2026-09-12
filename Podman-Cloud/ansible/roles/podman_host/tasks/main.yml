@@ -1,0 +1,193 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Cloudsdoers
+---
+# =====================================================================
+# podman_host — laboratorio Podman-Cloud (modelo "Cloud", rootful)
+# =====================================================================
+# A diferencia del lab Podman-Host (rootless), aqui la API y el motor
+# corren ROOTFUL: es lo que mejor encaja con el plugin docker-plugin y
+# con los Podman Secrets del laboratorio (store de sistema). Ver la guia
+# del modelo y los ADRs para el analisis rootful vs rootless.
+# =====================================================================
+
+- name: "podman_host | Instalar paquetes de Podman y Java"
+  ansible.builtin.dnf:
+    name: "{{ podman_host_required_packages }}"
+    state: present
+    update_cache: false
+
+- name: "podman_host | Verificar instalación de podman"
+  ansible.builtin.command: podman --version
+  register: podman_version
+  changed_when: false
+
+- name: "podman_host | Verificar que podman-docker crea el alias 'docker'"
+  ansible.builtin.command: which docker
+  register: docker_alias
+  changed_when: false
+  failed_when: false
+
+# =====================================================================
+# podman-compose (pruebas manuales de la reference-app)
+# =====================================================================
+- name: "podman_host | Asegurar EPEL habilitado (para el paquete 'podman-compose')"
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+
+- name: "podman_host | Instalar podman-compose"
+  ansible.builtin.dnf:
+    name: podman-compose
+    state: present
+
+# =====================================================================
+# Socket rootful de Podman (API REST local del sistema)
+# =====================================================================
+# Unidad vendor podman.socket (system scope): crea /run/podman/podman.sock.
+# Lo montan los contenedores-agente que empaquetan imagenes.
+- name: "podman_host | Habilitar y arrancar el socket rootful de Podman (podman.socket)"
+  ansible.builtin.systemd:
+    name: podman.socket
+    enabled: true
+    state: started
+
+- name: "podman_host | Verificar que el socket rootful existe en disco"
+  ansible.builtin.stat:
+    path: /run/podman/podman.sock
+  register: podman_socket_stat
+  retries: 5
+  delay: 2
+  until: podman_socket_stat.stat.exists
+
+- name: "podman_host | Fallar con mensaje claro si el socket rootful no aparecio"
+  ansible.builtin.fail:
+    msg: >-
+      El socket /run/podman/podman.sock no existe tras habilitar podman.socket.
+      Revisa 'systemctl status podman.socket' en el podman-host.
+  when: not podman_socket_stat.stat.exists
+
+# =====================================================================
+# API de Podman expuesta en TCP (rootful) para el Jenkins Controller
+# =====================================================================
+- name: "podman_host | Desplegar podman-tcp.service (API TCP rootful)"
+  ansible.builtin.template:
+    src: podman-tcp.service.j2
+    dest: /etc/systemd/system/podman-tcp.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: "podman_host | Recargar systemd"
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: "podman_host | Habilitar y arrancar podman-tcp.service"
+  ansible.builtin.systemd:
+    name: podman-tcp.service
+    enabled: true
+    state: started
+
+- name: "podman_host | Esperar a que la API TCP escuche en :{{ podman_api_port }}"
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ podman_api_port }}"
+    timeout: 30
+
+# Verificacion end-to-end de la API. Con mTLS (por defecto) hay que
+# presentar el certificado de cliente y validar el de servidor contra la
+# CA; ademas, al usar la IP en la URL, el SAN del certificado de servidor
+# (que incluye esa IP) debe coincidir. Sin TLS cae al ping HTTP simple.
+- name: "podman_host | Verificar la API mTLS (con certificado de cliente)"
+  ansible.builtin.uri:
+    url: "https://{{ podman_tls_server_ip }}:{{ podman_api_port }}/_ping"
+    ca_path: "{{ podman_tls_dir }}/ca.pem"
+    client_cert: "{{ podman_tls_dir }}/client-cert.pem"
+    client_key: "{{ podman_tls_dir }}/client-key.pem"
+    validate_certs: true
+    status_code: 200
+  register: podman_api_ping_tls
+  retries: 10
+  delay: 3
+  until: podman_api_ping_tls.status == 200
+  when: podman_tls_enabled | bool
+
+- name: "podman_host | Verificar la API sin TLS (solo si podman_tls_enabled=false)"
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ podman_api_port }}/_ping"
+    status_code: 200
+  register: podman_api_ping_plain
+  retries: 10
+  delay: 3
+  until: podman_api_ping_plain.status == 200
+  when: not (podman_tls_enabled | bool)
+
+- name: "podman_host | Abrir el puerto de la API en firewalld (si esta activo)"
+  ansible.builtin.command: "firewall-cmd --permanent --add-port={{ podman_api_port }}/tcp"
+  register: firewalld_add
+  changed_when: firewalld_add.rc == 0
+  failed_when: false
+
+- name: "podman_host | Recargar firewalld (best-effort)"
+  ansible.builtin.command: "firewall-cmd --reload"
+  when: firewalld_add.rc == 0
+  changed_when: true
+  failed_when: false
+
+# =====================================================================
+# Imagenes-agente hibridas (toolchain + jenkins/inbound-agent)
+# =====================================================================
+# La Cloud crea contenedores-agente a partir de estas imagenes. Se
+# construyen aqui con "podman build" ROOTFUL (para que queden en el
+# mismo store que usa la API) a partir de los Containerfiles versionados
+# en agent-images/ del repo del lab.
+- name: "podman_host | Crear directorio de imagenes-agente en el host"
+  ansible.builtin.file:
+    path: "{{ jenkins_base_dir }}/agent-images"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "podman_host | Copiar contextos de build de las imagenes-agente"
+  ansible.builtin.copy:
+    src: "{{ agent_images_dir }}/{{ item.name }}/"
+    dest: "{{ jenkins_base_dir }}/agent-images/{{ item.name }}/"
+    owner: root
+    group: root
+  loop: "{{ agent_images }}"
+
+- name: "podman_host | Construir imagenes-agente (podman build rootful)"
+  ansible.builtin.command: "podman build --format docker -t localhost/{{ item.name }}:latest ."
+  args:
+    chdir: "{{ jenkins_base_dir }}/agent-images/{{ item.name }}"
+  register: agent_image_build
+  changed_when: "'COMMIT' in agent_image_build.stdout or 'Successfully tagged' in agent_image_build.stdout"
+  loop: "{{ agent_images }}"
+
+# =====================================================================
+# Codigo de la aplicacion de referencia (backend Java/Maven + frontend
+# Angular/npm) para el pipeline "reference-pipeline".
+# =====================================================================
+# Sin SCM: el pipeline asume que "backend/" y "frontend/" ya existen en
+# la raiz de su workspace. Ansible los copia al workspace real del job
+# (<RemoteFs>/workspace/<nombre-del-job>). Los contenedores de la Cloud
+# (rootful) acceden a este directorio a traves del volumen de la plantilla.
+- name: "podman_host | Crear directorio de workspace para {{ reference_pipeline_job_name }}"
+  ansible.builtin.file:
+    path: "{{ reference_app_workspace_dest }}"
+    state: directory
+    owner: "{{ jenkins_user }}"
+    group: "{{ jenkins_group }}"
+    mode: "0755"
+
+- name: "podman_host | Copiar backend/frontend de la reference-app al workspace"
+  ansible.builtin.copy:
+    src: "{{ jenkins_config_reference_app_dir }}/{{ item }}"
+    dest: "{{ reference_app_workspace_dest }}/"
+    owner: "{{ jenkins_user }}"
+    group: "{{ jenkins_group }}"
+  loop:
+    - "backend"
+    - "frontend"
+    - "podman-compose.yml"
+    - "README.md"

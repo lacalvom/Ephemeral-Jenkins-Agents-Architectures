@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Cloudsdoers
+---
+podman_host_required_packages:
+  - podman
+  - podman-docker
+  - "{{ java_package_openjdk_headless }}"
+  - "{{ java_package_openjdk }}"
+  - shadow-utils
+  - slirp4netns
+  - fuse-overlayfs

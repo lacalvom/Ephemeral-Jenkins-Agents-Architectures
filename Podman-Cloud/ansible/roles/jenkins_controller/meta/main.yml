@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Cloudsdoers
+---
+galaxy_info:
+  role_name: jenkins_controller
+  author: DevOps Team
+  description: Instala y configura Jenkins LTS como servicio del usuario jenkins
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+  galaxy_tags: [jenkins, controller, cicd]
+dependencies:
+  - role: common

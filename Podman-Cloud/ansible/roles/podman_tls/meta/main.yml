@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Cloudsdoers
+---
+galaxy_info:
+  role_name: podman_tls
+  author: DevOps Team
+  description: Genera la PKI (CA + certificados de servidor y cliente) para mTLS de la API de Podman
+  license: Apache-2.0
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+  galaxy_tags: [podman, tls, pki, jenkins]
+dependencies:
+  - role: common

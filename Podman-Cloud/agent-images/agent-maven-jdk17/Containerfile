@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Cloudsdoers
+# =====================================================================
+# agent-maven-jdk17 — agente Jenkins con Maven (Java 17)
+# =====================================================================
+# Imagen-agente hibrida para el modelo Podman-Cloud: incluye el runtime
+# del agente Jenkins (inbound-agent) + la toolchain Maven. A diferencia
+# del modelo Podman-Host, aqui el contenedor ES el agente (no se usa
+# "docker exec"), por eso debe llevar el agente dentro.
+# =====================================================================
+FROM docker.io/jenkins/inbound-agent:latest-jdk17
+
+USER root
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends maven git \
+ && rm -rf /var/lib/apt/lists/*
+USER jenkins

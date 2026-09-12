@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Cloudsdoers
+# =====================================================================
+# agent-node20 — agente Jenkins con Node 20 y npm
+# =====================================================================
+# Imagen-agente hibrida (inbound-agent + toolchain Node 20). Node se
+# instala desde NodeSource porque el Node de los repos base de Debian
+# es demasiado antiguo para Angular 20.
+# =====================================================================
+FROM docker.io/jenkins/inbound-agent:latest-jdk17
+
+USER root
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl gnupg git \
+ && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+ && apt-get install -y --no-install-recommends nodejs \
+ && rm -rf /var/lib/apt/lists/*
+USER jenkins
