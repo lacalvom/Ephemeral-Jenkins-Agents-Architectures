@@ -16,10 +16,11 @@ FROM docker.io/jenkins/inbound-agent:latest-rhel-ubi9-jdk21
 
 USER root
 
+# NOTA: UBI 9 ya trae "curl-minimal" (provee el binario curl); pedir el
+# paquete "curl" entra en conflicto con el. Por eso no se instala aqui.
 RUN dnf install -y --disableplugin=subscription-manager \
       --setopt=install_weak_deps=0 --setopt=tsflags=nodocs \
       ca-certificates \
-      curl \
       git \
       jq \
       gzip \

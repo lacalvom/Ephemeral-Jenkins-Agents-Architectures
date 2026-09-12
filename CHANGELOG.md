@@ -46,6 +46,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Correcciones (no breaking)
 
+- **Podman-Cloud: conflicto de `curl` al construir las imágenes UBI 9.** La
+  base `jenkins/inbound-agent:latest-rhel-ubi9-jdk21` ya trae `curl-minimal`,
+  que entra en conflicto con el paquete `curl`; `dnf install curl` abortaba el
+  build de `agent-node20` y `agent-podman`. Se deja de instalar `curl`
+  (el binario lo aporta `curl-minimal`).
+
 - **Guia de Podman-Host: montaje del socket de Podman corregido en el ejemplo.**
   El ejemplo de "Pipeline Maestro de Referencia" usaba la ruta antigua
   `/run/user/1000/...` con `:z`; se alinea con el pipeline real

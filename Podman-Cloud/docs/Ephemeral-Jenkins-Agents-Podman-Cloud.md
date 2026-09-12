@@ -273,12 +273,17 @@ FROM docker.io/jenkins/inbound-agent:latest-rhel-ubi9-jdk21
 
 USER root
 RUN dnf install -y --disableplugin=subscription-manager \
-      --setopt=install_weak_deps=0 --setopt=tsflags=nodocs curl git \
+      --setopt=install_weak_deps=0 --setopt=tsflags=nodocs \
+      ca-certificates git \
  && curl -fsSL https://rpm.nodesource.com/setup_20.x | bash - \
  && dnf install -y --disableplugin=subscription-manager nodejs \
  && dnf clean --disableplugin=subscription-manager all
 USER jenkins
 ```
+
+> **Ojo con `curl` en UBI 9:** la base ya trae `curl-minimal` (que provee el
+> binario `curl`). Si en el `dnf install` pides el paquete `curl`, entra en
+> conflicto y el build falla. No lo instales: usa el `curl` ya presente.
 
 > Fíjate en el matiz: la imagen del agente **siempre lleva un JDK** (para el
 > propio agente), aunque tu proyecto sea Node. En Podman-Host, la imagen de
