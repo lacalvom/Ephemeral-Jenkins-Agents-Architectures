@@ -85,18 +85,22 @@ def makeTemplate = { String name, String label, String image, String mounts, Str
     return template
 }
 
+// El campo "mounts" del template (mountsString) NO usa la sintaxis "-v
+// host:contenedor": espera pares key=value separados por comas, una linea
+// por mount (type=bind|volume,source=...,destination=...). Pasar la
+// sintaxis "-v" da "Invalid mount: expected key=value comma separated".
 def templates = [
     makeTemplate(
         "agent-maven-jdk17", "maven-jdk17", "localhost/agent-maven-jdk17:latest",
-        "${workspace}:${workspace}\nmaven-cache:/cache/.m2",
+        "type=bind,source=${workspace},destination=${workspace}\ntype=volume,source=maven-cache,destination=/cache/.m2",
         "MAVEN_OPTS=-Dmaven.repo.local=/cache/.m2/repository", ""),
     makeTemplate(
         "agent-node20", "node20", "localhost/agent-node20:latest",
-        "${workspace}:${workspace}\nnpm-cache:/cache/.npm",
+        "type=bind,source=${workspace},destination=${workspace}\ntype=volume,source=npm-cache,destination=/cache/.npm",
         "", ""),
     makeTemplate(
         "agent-podman", "podman-build", "localhost/agent-podman:latest",
-        "${workspace}:${workspace}\n${podmanSocket}:/run/podman/podman.sock",
+        "type=bind,source=${workspace},destination=${workspace}\ntype=bind,source=${podmanSocket},destination=/run/podman/podman.sock",
         "CONTAINER_HOST=unix:///run/podman/podman.sock", "label=disable"),
 ]
 

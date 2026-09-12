@@ -124,15 +124,18 @@ podman_cloud_templates:
     label: "maven-jdk17"
     image: "localhost/agent-maven-jdk17:latest"
     remote_fs: "{{ jenkins_workspace_dir }}"
-    # workspace compartido + cache de Maven (named volume)
-    mounts: "/datos/jenkins/pipelines-workspace:/datos/jenkins/pipelines-workspace\nmaven-cache:/cache/.m2"
+    # workspace compartido + cache de Maven (named volume).
+    # OJO: el campo "mounts" del docker-plugin NO usa la sintaxis "-v
+    # host:contenedor"; espera pares key=value separados por comas, una
+    # linea por mount (type=bind|volume,source=...,destination=...).
+    mounts: "type=bind,source={{ jenkins_workspace_dir }},destination={{ jenkins_workspace_dir }}\ntype=volume,source=maven-cache,destination=/cache/.m2"
     env: "MAVEN_OPTS=-Dmaven.repo.local=/cache/.m2/repository"
     security_opts: ""
   - name: "agent-node20"
     label: "node20"
     image: "localhost/agent-node20:latest"
     remote_fs: "{{ jenkins_workspace_dir }}"
-    mounts: "/datos/jenkins/pipelines-workspace:/datos/jenkins/pipelines-workspace\nnpm-cache:/cache/.npm"
+    mounts: "type=bind,source={{ jenkins_workspace_dir }},destination={{ jenkins_workspace_dir }}\ntype=volume,source=npm-cache,destination=/cache/.npm"
     env: ""
     security_opts: ""
   - name: "agent-podman"
@@ -141,7 +144,7 @@ podman_cloud_templates:
     remote_fs: "{{ jenkins_workspace_dir }}"
     # ademas del workspace, monta el socket rootful de Podman del host para
     # construir imagenes (Podman-out-of-Podman).
-    mounts: "/datos/jenkins/pipelines-workspace:/datos/jenkins/pipelines-workspace\n/run/podman/podman.sock:/run/podman/podman.sock"
+    mounts: "type=bind,source={{ jenkins_workspace_dir }},destination={{ jenkins_workspace_dir }}\ntype=bind,source=/run/podman/podman.sock,destination=/run/podman/podman.sock"
     env: "CONTAINER_HOST=unix:///run/podman/podman.sock"
     # contenido de sistema (socket): desactiva SELinux para ese contenedor.
     security_opts: "label=disable"

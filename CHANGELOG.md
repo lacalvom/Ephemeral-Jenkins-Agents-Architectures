@@ -46,6 +46,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Correcciones (no breaking)
 
+- **Podman-Cloud: sintaxis de los mounts de las plantillas de agente.** El
+  campo `mounts`/`mountsString` del `docker-plugin` no usa la sintaxis
+  `-v host:contenedor` sino pares `key=value` separados por comas
+  (`type=bind,source=...,destination=...` / `type=volume,...`). Estaba mal en
+  `create-cloud.groovy` y en `vars.yml`, y el primer build abortaba con
+  `Invalid mount: expected key=value comma separated…`. Se corrigen las 3
+  plantillas y se documenta la sintaxis en la guía (secciones 6.1, 6.2, 7.2,
+  8 y troubleshooting) y en ADR-0004.
+
 - **Podman-Cloud: conflicto de `curl` al construir las imágenes UBI 9.** La
   base `jenkins/inbound-agent:latest-rhel-ubi9-jdk21` ya trae `curl-minimal`,
   que entra en conflicto con el paquete `curl`; `dnf install curl` abortaba el

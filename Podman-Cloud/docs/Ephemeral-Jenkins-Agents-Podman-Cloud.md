@@ -407,7 +407,12 @@ sh '''
   - *Docker Image* y *Pull strategy* (`Never pull` para imágenes locales).
   - *Remote File System Root* (`remoteFs`).
   - *Connect method* (JNLP / SSH / attached) + *Jenkins URL* y *user*.
-  - *Volumes*, *Volumes From*, *Environment*, *User*, *Network*,
+  - *Volumes* (campo `mounts`/`mountsString`) y *Volumes From*: **ojo**, el
+    campo *Volumes* **no** usa la sintaxis `-v host:contenedor`; espera pares
+    `key=value` separados por comas, una línea por mount:
+    `type=bind,source=/datos/jenkins/pipelines-workspace,destination=/datos/jenkins/pipelines-workspace`
+    o `type=volume,source=maven-cache,destination=/cache/.m2`.
+  - *Environment*, *User*, *Network*,
     *Port bindings*, *Hostname*, *Privileged*, *Extra Hosts*, etc.
   - *Instance Capacity* (contenedores por host), *Idle timeout*.
 
@@ -437,9 +442,8 @@ jenkins:
         dockerTemplateBase:
           image: "localhost/agent-maven-jdk17:latest"
           pullStrategy: "NEVER"
-          volumes:
-            - "/datos/jenkins/pipelines-workspace:/datos/jenkins/pipelines-workspace"
-            - "maven-cache:/cache/.m2"
+          # mountsString: pares key=value, una linea por mount (NO "-v host:dest")
+          mountsString: "type=bind,source=/datos/jenkins/pipelines-workspace,destination=/datos/jenkins/pipelines-workspace\ntype=volume,source=maven-cache,destination=/cache/.m2"
           environment:
             - "MAVEN_OPTS=-Dmaven.repo.local=/cache/.m2/repository"
 
@@ -453,9 +457,7 @@ jenkins:
         dockerTemplateBase:
           image: "localhost/agent-node20:latest"
           pullStrategy: "NEVER"
-          volumes:
-            - "/datos/jenkins/pipelines-workspace:/datos/jenkins/pipelines-workspace"
-            - "npm-cache:/cache/.npm"
+          mountsString: "type=bind,source=/datos/jenkins/pipelines-workspace,destination=/datos/jenkins/pipelines-workspace\ntype=volume,source=npm-cache,destination=/cache/.npm"
 
       - name: "podman-build"
         labelString: "podman-build"
@@ -467,15 +469,13 @@ jenkins:
         dockerTemplateBase:
           image: "localhost/agent-podman:latest"
           pullStrategy: "NEVER"
-          volumes:
-            - "/datos/jenkins/pipelines-workspace:/datos/jenkins/pipelines-workspace"
-            - "/run/user/1100/podman/podman.sock:/run/podman/podman.sock"
+          mountsString: "type=bind,source=/datos/jenkins/pipelines-workspace,destination=/datos/jenkins/pipelines-workspace\ntype=bind,source=/run/podman/podman.sock,destination=/run/podman/podman.sock"
           environment:
             - "CONTAINER_HOST=unix:///run/podman/podman.sock"
 ```
 
 > Los nombres exactos de los campos JCasC (`pullStrategy`, `environment`,
-> `volumes`, `dockerTemplateBase`, etc.) **pueden variar según la versión**
+> `mountsString`, `dockerTemplateBase`, etc.) **pueden variar según la versión**
 > del plugin. La forma fiable de obtenerlos es configurar la Cloud por UI y
 > usar **"Export configuration as code"** (plugin `configuration-as-code`) o
 > el *script console* con un `export`.
@@ -495,8 +495,8 @@ el contenedor es efímero, por defecto **ese workspace se destruye** con él.
 No existe `reuseNode` en Podman-Cloud. Lo que haces es **montar un directorio
 del host dentro de cada plantilla** y apuntar `remoteFs` a esa ruta:
 
-- Volumen en la plantilla:
-  `/datos/jenkins/pipelines-workspace:/datos/jenkins/pipelines-workspace`
+- Volumen en la plantilla (campo `mounts`):
+  `type=bind,source=/datos/jenkins/pipelines-workspace,destination=/datos/jenkins/pipelines-workspace`
 - `remoteFs`: `/datos/jenkins/pipelines-workspace`
 
 Resultado: el workspace real queda en el **host** (`podman-host`), igual que
@@ -545,8 +545,8 @@ a la plantilla**:
 
 ```yaml
 dockerTemplateBase:
-  volumes:
-    - "maven-cache:/cache/.m2"     # named volume, persiste entre builds
+  # campo mountsString: pares key=value, una linea por mount
+  mountsString: "type=volume,source=maven-cache,destination=/cache/.m2"
 ```
 
 y el pipeline simplemente usa la ruta (`/cache/.m2`), sin `-v`.
@@ -774,6 +774,12 @@ Diferencias con el pipeline de Podman-Host:
 - **Permission denied al construir imágenes**: el socket no está montado, o
   SELinux lo bloquea (usa `--security-opt label=disable`, ver ADR-011), o el
   UID dentro del contenedor no mapea al del socket.
+- **`Invalid mount: expected key=value comma separated…`**: estás usando la
+  sintaxis `-v host:contenedor` en el campo *Volumes*/`mounts` del template.
+  Ese campo espera pares `key=value`: por ejemplo
+  `type=bind,source=/datos/jenkins/pipelines-workspace,destination=/datos/jenkins/pipelines-workspace`
+  y `type=volume,source=maven-cache,destination=/cache/.m2`. Es un error del
+  propio `docker-plugin` (no de Podman).
 - **El workspace "desaparece" entre builds**: olvidaste montar el volumen del
   host (o `remoteFs` no apunta a la ruta montada).
 - **Cachés corruptas / builds concurrentes fallan**: mismo `maven-cache`

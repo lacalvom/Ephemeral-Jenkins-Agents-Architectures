@@ -23,9 +23,18 @@ bajo demanda**, seleccionables por *label*. No hace falta un nodo permanente.
 2. **Workspace y cachés se configuran en la PLANTILLA** (no en el pipeline):
    - workspace compartido montado desde el host
      (`/datos/jenkins/pipelines-workspace`), `remoteFs` apuntando ahí;
-   - cachés como *named volumes* (`maven-cache:/cache/.m2`,
-     `npm-cache:/cache/.npm`);
+   - cachés como *named volumes* (`maven-cache` en `/cache/.m2`,
+     `npm-cache` en `/cache/.npm`);
    - el agente de build monta el socket rootful y fija `CONTAINER_HOST`.
+
+   Los mounts se declaran en el campo `mounts`/`mountsString` del template,
+   que **no** usa la sintaxis `-v host:contenedor` sino pares `key=value`
+   separados por comas, una línea por mount
+   (`type=bind,source=...,destination=...` o
+   `type=volume,source=...,destination=...`). Pasar la sintaxis `-v` aborta
+   el aprovisionamiento con
+   `Invalid mount: expected key=value comma separated…`.
+
    El pipeline solo usa `agent { label '...' }`.
 3. **El código de la app lo copia Ansible** al workspace del job en el
    podman-host (no se usa SCM), igual que en Podman-Host.
