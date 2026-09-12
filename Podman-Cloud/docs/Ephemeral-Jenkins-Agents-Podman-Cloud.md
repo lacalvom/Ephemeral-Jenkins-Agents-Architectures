@@ -244,28 +244,49 @@ WebSocket sobre el puerto HTTP 8080 es lo más cómodo; o el puerto 50000).
 
 ### 5.1 Imágenes híbridas (toolchain + agente)
 
-Para reproducir el pipeline del laboratorio **Podman-Host** necesitas, por ejemplo:
+Todas las imágenes-agente del laboratorio parten de la **misma base**:
 
 ```dockerfile
-# agent-maven-jdk17: toolchain Maven + agente Jenkins
-FROM jenkins/inbound-agent:latest-jdk17
+FROM docker.io/jenkins/inbound-agent:latest-rhel-ubi9-jdk21
+```
+
+- Es **UBI 9** (RHEL 9), coherente con AlmaLinux 9 del resto del laboratorio.
+- Trae el **runtime del agente + JDK 21**, alineado con el JDK del controller.
+- Sobre esa base se añade la toolchain con `dnf` (se usa
+  `--disableplugin=subscription-manager` porque la imagen UBI lo trae y falla):
+
+```dockerfile
+# agent-maven-jdk17: agente (JDK21) + Maven + toolchain JDK17
+FROM docker.io/jenkins/inbound-agent:latest-rhel-ubi9-jdk21
 
 USER root
-RUN dnf install -y maven git && dnf clean all
+RUN dnf install -y --disableplugin=subscription-manager \
+      --setopt=install_weak_deps=0 --setopt=tsflags=nodocs \
+      maven java-17-openjdk-devel git \
+ && dnf clean --disableplugin=subscription-manager all
 USER jenkins
 ```
 
 ```dockerfile
-# agent-node20: toolchain Node + agente Jenkins
-FROM jenkins/inbound-agent:latest-jdk21   # el agente necesita un JRE
+# agent-node20: agente (JDK21) + Node 20
+FROM docker.io/jenkins/inbound-agent:latest-rhel-ubi9-jdk21
+
 USER root
-RUN dnf install -y nodejs npm git && dnf clean all
+RUN dnf install -y --disableplugin=subscription-manager \
+      --setopt=install_weak_deps=0 --setopt=tsflags=nodocs curl git \
+ && curl -fsSL https://rpm.nodesource.com/setup_20.x | bash - \
+ && dnf install -y --disableplugin=subscription-manager nodejs \
+ && dnf clean --disableplugin=subscription-manager all
 USER jenkins
 ```
 
 > Fíjate en el matiz: la imagen del agente **siempre lleva un JDK** (para el
 > propio agente), aunque tu proyecto sea Node. En Podman-Host, la imagen de
 > Node no necesitaba Java.
+>
+> El **JDK del agente** (21) es independiente del **JDK de compilación**: si el
+> build necesita otra versión (p. ej. 17 con Maven), se añade como *toolchain*
+> en la misma imagen. Ver sección 5.3 y ADR-0006.
 
 ### 5.2 Agente que además construye imágenes (Podman-out-of-Podman)
 
@@ -283,6 +304,78 @@ La imagen `agent-podman` de este laboratorio añade, además de Podman, las
 herramientas **`kubectl`, `kubectx` y `kubens`** para operar contra clústeres
 Kubernetes desde el pipeline. El **kubeconfig no se hornea** en la imagen: se
 inyecta en tiempo de build con un *Managed Config File* (ver sección 10).
+
+### 5.3 JDK del agente vs JDK de compilación (Maven Toolchains)
+
+Son dos cosas distintas y conviene no mezclarlas:
+
+| | Quién lo usa | En este laboratorio |
+|---|---|---|
+| **JDK del agente** | El runtime del agente Jenkins (y por tanto Maven) | **JDK 21** (base de la imagen), alineado con el controller |
+| **JDK de compilación** | `javac` que compila la aplicación | **JDK 17** (el que pide el backend), aportado como *toolchain* |
+
+**Maven es agnóstico al JDK**: `mvn` corre sobre el JDK 21 del agente, y es la
+**toolchain** la que decide con qué `javac` se compila. Así una sola imagen de
+agente (JDK 21) puede compilar para varias versiones de Java sin duplicar
+imágenes.
+
+**1. En la imagen** (`agent-maven-jdk17`) se instala el JDK 17 y se declara en
+`/opt/toolchains/toolchains.xml`:
+
+```xml
+<toolchains>
+  <toolchain>
+    <type>jdk</type>
+    <provides>
+      <version>17</version>
+      <vendor>openjdk</vendor>
+    </provides>
+    <configuration>
+      <jdkHome>/usr/lib/jvm/java-17-openjdk</jdkHome>
+    </configuration>
+  </toolchain>
+</toolchains>
+```
+
+**2. En el `pom.xml`** se activa el plugin que selecciona la toolchain:
+
+```xml
+<plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-toolchains-plugin</artifactId>
+  <version>3.2.0</version>
+  <executions>
+    <execution>
+      <goals><goal>toolchain</goal></goals>
+    </execution>
+  </executions>
+  <configuration>
+    <toolchains>
+      <jdk><version>17</version></jdk>
+    </toolchains>
+  </configuration>
+</plugin>
+```
+
+**3. En el pipeline** se pasa el fichero de toolchains a Maven:
+
+```groovy
+sh '''
+  cd backend
+  mvn -t /opt/toolchains/toolchains.xml \
+      -Dmaven.repo.local=/cache/.m2/repository \
+      -B -ntp clean package
+'''
+```
+
+> **Ojo:** con `maven-toolchains-plugin`, si se ejecuta `mvn` **sin** `-t` el
+> build falla con `Cannot find matching toolchain definitions`. Es intencionado
+> (fallar rápido y claro) y hay que tenerlo en cuenta al probar a mano (ver
+> `samples/reference-app/README.md`).
+>
+> **Alternativa sin toolchains:** compilar sobre el JDK 21 con
+> `-Dmaven.compiler.release=17` (genera bytecode/API de 17). Es más simple, pero
+> aquí se usa toolchains a propósito para enseñar el mecanismo. Ver ADR-0006.
 
 ---
 
@@ -478,7 +571,7 @@ Consideraciones:
 - Como en Podman-Host, distintos stages pueden usar distintos labels:
 
 ```groovy
-stage('Backend')   { agent { label 'maven-jdk17' }   ; steps { sh 'cd backend && mvn -B clean package' } }
+stage('Backend')   { agent { label 'maven-jdk17' }   ; steps { sh 'cd backend && mvn -t /opt/toolchains/toolchains.xml -B clean package' } }
 stage('Frontend')  { agent { label 'node20' }         ; steps { sh 'cd frontend && npm ci && npm run build' } }
 stage('Imagen')    { agent { label 'podman-build' }   ; steps { sh 'podman build -t app:${BUILD_NUMBER} -f backend/Dockerfile .' } }
 ```
@@ -503,7 +596,8 @@ pipeline {
             steps {
                 sh '''
                     cd backend
-                    mvn -B -ntp -Dmaven.repo.local=/cache/.m2/repository clean package
+                    mvn -t /opt/toolchains/toolchains.xml \
+                        -B -ntp -Dmaven.repo.local=/cache/.m2/repository clean package
                 '''
             }
         }
@@ -720,7 +814,8 @@ Diferencias con el pipeline de Podman-Host:
   [ADR-0002](./adr/0002-imagenes-agente-hibridas.md),
   [ADR-0003](./adr/0003-api-tcp-sin-tls.md) (sustituido por ADR-0005),
   [ADR-0004](./adr/0004-aprovisionamiento-via-cloud.md),
-  [ADR-0005](./adr/0005-mtls-api-podman.md) (mTLS).
+  [ADR-0005](./adr/0005-mtls-api-podman.md) (mTLS),
+  [ADR-0006](./adr/0006-jdk-agente-vs-jdk-compilacion-toolchains.md) (JDK del agente vs JDK de compilación).
 - ADRs relacionados (del lab Podman-Host):
   [ADR-005](../../Podman-Host/docs/adr/0005-podman-secrets-como-root.md) (secrets root),
   [ADR-009](../../Podman-Host/docs/adr/0009-reference-app-sin-scm.md) (app de referencia sin SCM),

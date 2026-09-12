@@ -48,15 +48,24 @@ compilar primero (ver más abajo).
 
 ### 1. Compilar el backend
 
+El `pom.xml` activa `maven-toolchains-plugin` (JDK 17), así que hay que
+pasarle un `toolchains.xml`. La forma más simple es usar la propia
+imagen-agente, que ya lo trae en `/opt/toolchains/toolchains.xml`:
+
 ```bash
 cd backend
-podman run --rm -v "$(pwd)":/build:z -w /build \
-  registry.access.redhat.com/ubi9/openjdk-17:latest \
-  mvn -B -ntp clean package
+podman run --rm -v "$(pwd)":/build:z -w /build --user 0 \
+  localhost/agent-maven-jdk17:latest \
+  mvn -t /opt/toolchains/toolchains.xml -B -ntp clean package
 ```
 
 Esto genera `backend/target/reference-backend.jar` y ejecuta los tests
 (`HelloControllerTest`).
+
+> Si compilas con una imagen JDK 17 "pelada" (p. ej. `ubi9/openjdk-17`)
+> tendrás que aportar tu propio `toolchains.xml` con `mvn -t ...`; en caso
+> contrario el build falla con `Cannot find matching toolchain definitions`
+> (ver ADR-0006).
 
 ### 2. Compilar el frontend
 

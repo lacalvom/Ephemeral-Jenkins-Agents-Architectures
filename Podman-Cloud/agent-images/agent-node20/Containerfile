@@ -1,18 +1,26 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2026 Cloudsdoers
 # =====================================================================
-# agent-node20 — agente Jenkins con Node 20 y npm
+# agent-node20 — agente Jenkins (JDK 21) con Node 20 y npm
 # =====================================================================
-# Imagen-agente hibrida (inbound-agent + toolchain Node 20). Node se
-# instala desde NodeSource porque el Node de los repos base de Debian
-# es demasiado antiguo para Angular 20.
+# Imagen-agente hibrida para el modelo Podman-Cloud. El agente corre
+# sobre el JDK 21 de la imagen base; la toolchain es Node 20 (no
+# necesita JDK propio para compilar).
+#
+# Base UBI 9 (RHEL 9). Node se instala desde NodeSource porque da una
+# version 20 controlada (los repos base pueden traer una mas antigua).
 # =====================================================================
-FROM docker.io/jenkins/inbound-agent:latest-jdk17
+FROM docker.io/jenkins/inbound-agent:latest-rhel-ubi9-jdk21
 
 USER root
-RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl gnupg git \
- && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
- && apt-get install -y --no-install-recommends nodejs \
- && rm -rf /var/lib/apt/lists/*
+
+RUN dnf install -y --disableplugin=subscription-manager \
+      --setopt=install_weak_deps=0 --setopt=tsflags=nodocs \
+      ca-certificates \
+      curl \
+      git \
+ && curl -fsSL https://rpm.nodesource.com/setup_20.x | bash - \
+ && dnf install -y --disableplugin=subscription-manager nodejs \
+ && dnf clean --disableplugin=subscription-manager all
+
 USER jenkins

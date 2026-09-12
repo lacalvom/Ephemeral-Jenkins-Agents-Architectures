@@ -13,6 +13,7 @@ implementacion.
 | [ADR-0003](./0003-api-tcp-sin-tls.md) | Exposicion de la API por TCP sin TLS (`podman-tcp.service`) | Sustituido por ADR-0005 |
 | [ADR-0004](./0004-aprovisionamiento-via-cloud.md) | Aprovisionamiento via Cloud (sin nodo JNLP permanente) | Aceptado |
 | [ADR-0005](./0005-mtls-api-podman.md) | **mTLS obligatorio** en la API de Podman (PKI propia + puerto 2376) | Aceptado |
+| [ADR-0006](./0006-jdk-agente-vs-jdk-compilacion-toolchains.md) | JDK del agente (21) vs JDK de compilación (toolchains, p. ej. 17) | Aceptado |
 
 ## Como escribir un nuevo ADR
 

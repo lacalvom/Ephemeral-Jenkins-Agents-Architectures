@@ -1,11 +1,12 @@
 # agent-podman
 
-Imagen-agente **híbrida** para el modelo Podman-Cloud, orientada a **empaquetar
-imágenes de contenedor** y a **operar contra Kubernetes**.
+Imagen-agente **híbrida** para el modelo Podman-Cloud, orientada a
+**empaquetar imágenes de contenedor** y a **operar contra Kubernetes**.
 
 ## Contenido
 
-- Base: `docker.io/jenkins/inbound-agent:latest-jdk17` (Debian + JDK 17 + agente).
+- Base: `docker.io/jenkins/inbound-agent:latest-rhel-ubi9-jdk21`
+  (UBI 9, JDK 21, agente Jenkins).
 - Toolchain:
   - **Podman** (cliente): habla con el motor del **host** a través del socket
     que monta la plantilla (`CONTAINER_HOST=unix:///run/podman/podman.sock`).
@@ -25,8 +26,7 @@ pipeline construye la imagen en el almacén del host (`reference-backend:latest`
 Las herramientas de Kubernetes (kubectl/kubectx/kubens) **no** llevan ningún
 kubeconfig dentro: la configuración se **inyecta en tiempo de ejecución** en el
 pipeline con `configFileProvider(...)` (buena práctica: no hornear credenciales
-en la imagen). Ver `reference-pipeline.groovy`, stage de empaquetado, y la guía
-del modelo.
+en la imagen). Ver `reference-pipeline.groovy`, stage de empaquetado.
 
 ## Construir
 

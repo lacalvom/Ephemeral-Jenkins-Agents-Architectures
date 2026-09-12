@@ -33,6 +33,11 @@ pipeline {
         // -----------------------------------------------------------------
         // FASE 1: COMPILACION BACKEND (agente maven-jdk17)
         // -----------------------------------------------------------------
+        // El agente corre sobre JDK 21 (el de la imagen), pero el backend
+        // se compila con JDK 17: Maven lo selecciona via el toolchains.xml
+        // que trae la imagen (maven-toolchains-plugin en el pom). Por eso
+        // se pasa "-t /opt/toolchains/toolchains.xml".
+        // -----------------------------------------------------------------
         stage('Construccion Backend (Maven)') {
             agent { label 'maven-jdk17' }
             steps {
@@ -43,7 +48,9 @@ pipeline {
                         mkdir -p /cache/.m2
                         if [ -f backend/pom.xml ]; then
                             cd backend
+                            echo "JDK del agente (runtime): $(java -version 2>&1 | head -n1)"
                             mvn -s "$MAVEN_SETTINGS" \
+                                -t /opt/toolchains/toolchains.xml \
                                 -Dmaven.repo.local=/cache/.m2/repository \
                                 -B -ntp \
                                 clean package

@@ -1,20 +1,30 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2026 Cloudsdoers
 # =====================================================================
-# agent-podman — agente Jenkins con Podman + herramientas Kubernetes
+# agent-podman — agente Jenkins (JDK 21) con Podman + herramientas k8s
 # =====================================================================
-# Imagen-agente hibrida para:
-#   - empaquetar imagenes de aplicacion (podman build) usando el motor
-#     del HOST a traves del socket que monta la plantilla (CONTAINER_HOST);
-#   - operar contra un cluster Kubernetes con kubectl/kubectx/kubens
-#     (el kubeconfig se inyecta en tiempo de build del pipeline, no aqui).
+# Imagen-agente hibrida para el modelo Podman-Cloud:
+#   - El agente corre sobre el JDK 21 de la imagen base.
+#   - Incluye el cliente Podman (habla con el motor del HOST a traves
+#     del socket que monta la plantilla: CONTAINER_HOST).
+#   - Incluye kubectl, kubectx y kubens. El kubeconfig NO se hornea:
+#     se inyecta en tiempo de build del pipeline (Config File Provider).
+#
+# Base UBI 9 (RHEL 9), alineada con AlmaLinux 9 del resto del lab.
 # =====================================================================
-FROM docker.io/jenkins/inbound-agent:latest-jdk17
+FROM docker.io/jenkins/inbound-agent:latest-rhel-ubi9-jdk21
 
 USER root
-RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl git jq gzip podman \
- && rm -rf /var/lib/apt/lists/*
+
+RUN dnf install -y --disableplugin=subscription-manager \
+      --setopt=install_weak_deps=0 --setopt=tsflags=nodocs \
+      ca-certificates \
+      curl \
+      git \
+      jq \
+      gzip \
+      podman \
+ && dnf clean --disableplugin=subscription-manager all
 
 # kubectl (cliente oficial de Kubernetes)
 RUN KUBECTL_VERSION="$(curl -fsSL https://dl.k8s.io/release/stable.txt)" \

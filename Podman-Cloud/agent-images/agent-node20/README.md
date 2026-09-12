@@ -1,16 +1,17 @@
 # agent-node20
 
 Imagen-agente **híbrida** para el modelo Podman-Cloud: runtime del agente
-Jenkins + toolchain **Node 20 / npm**.
+Jenkins (JDK 21) + toolchain **Node 20 / npm**.
 
 ## Contenido
 
-- Base: `docker.io/jenkins/inbound-agent:latest-jdk17` (Debian + JDK 17 + agente).
+- Base: `docker.io/jenkins/inbound-agent:latest-rhel-ubi9-jdk21`
+  (UBI 9, JDK 21, agente Jenkins).
 - Toolchain: `nodejs` 20 (NodeSource), `npm`, `git`.
 
-> Nota: Node se instala desde **NodeSource** porque el Node de los repos base
-> de Debian es demasiado antiguo para Angular 20. La imagen siempre lleva un
-> JDK (para el propio agente), aunque el proyecto sea Node (ver ADR-0002).
+> El agente necesita una JVM (la trae la base, JDK 21) aunque el proyecto sea
+> Node; para compilar Node no se usa toolchain de Java. Ver ADR-0006 sobre la
+> separación JDK del agente / JDK de compilación.
 
 ## Construir
 
@@ -30,4 +31,4 @@ agent { label 'node20' }
 ```
 
 La caché de npm se monta como *named volume* (`npm-cache:/cache/.npm`) y el
-pipeline hace `npm config set cache /cache/.npm` (ver `create-cloud.groovy`).
+pipeline hace `npm config set cache /cache/.npm`.

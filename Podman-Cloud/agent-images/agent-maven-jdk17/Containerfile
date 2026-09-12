@@ -1,17 +1,38 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2026 Cloudsdoers
 # =====================================================================
-# agent-maven-jdk17 — agente Jenkins con Maven (Java 17)
+# agent-maven-jdk17 — agente Jenkins (JDK 21) con Maven y toolchain JDK 17
 # =====================================================================
-# Imagen-agente hibrida para el modelo Podman-Cloud: incluye el runtime
-# del agente Jenkins (inbound-agent) + la toolchain Maven. A diferencia
-# del modelo Podman-Host, aqui el contenedor ES el agente (no se usa
-# "docker exec"), por eso debe llevar el agente dentro.
+# Imagen-agente hibrida para el modelo Podman-Cloud:
+#   - El AGENTE corre sobre el JDK 21 que trae la imagen base (coherente
+#     con el JDK del Jenkins Controller).
+#   - El BUILD se compila con JDK 17 seleccionado por Maven Toolchains,
+#     independientemente del JDK con el que corre Maven (ver ADR-0006).
+#
+# Base UBI 9 (RHEL 9), alineada con AlmaLinux 9 del resto del lab.
 # =====================================================================
-FROM docker.io/jenkins/inbound-agent:latest-jdk17
+FROM docker.io/jenkins/inbound-agent:latest-rhel-ubi9-jdk21
 
 USER root
-RUN apt-get update \
- && apt-get install -y --no-install-recommends maven git \
- && rm -rf /var/lib/apt/lists/*
+
+# Maven (runtime del build) + JDK 17 (toolchain de compilacion) + git.
+RUN dnf install -y --disableplugin=subscription-manager \
+      --setopt=install_weak_deps=0 --setopt=tsflags=nodocs \
+      maven \
+      java-17-openjdk-devel \
+      git \
+ && dnf clean --disableplugin=subscription-manager all
+
+# toolchains.xml declara el JDK 17. El placeholder __JDK17_HOME__ se
+# sustituye aqui por la ruta real del JDK que instala el paquete (asi no
+# dependemos de un path fijo entre versiones menores).
+COPY toolchains.xml /opt/toolchains/toolchains.xml
+RUN set -eux; \
+    jdk17=/usr/lib/jvm/java-17-openjdk; \
+    if [ ! -x "${jdk17}/bin/javac" ]; then \
+        jdk17="$(ls -d /usr/lib/jvm/java-17-openjdk* | head -n1)"; \
+    fi; \
+    test -x "${jdk17}/bin/javac"; \
+    sed -i "s#__JDK17_HOME__#${jdk17}#g" /opt/toolchains/toolchains.xml
+
 USER jenkins

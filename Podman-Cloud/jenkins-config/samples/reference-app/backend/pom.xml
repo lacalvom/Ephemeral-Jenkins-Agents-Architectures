@@ -17,12 +17,17 @@
     <name>reference-backend</name>
     <description>
         Backend de ejemplo para el pipeline de referencia del laboratorio
-        jenkins-podman-lab. Expone un endpoint /api/hello y /api/version.
-        Sin base de datos: es intencionalmente minimo para probar el
-        pipeline de CI/CD, no para representar una arquitectura real.
+        Ephemeral-Jenkins-Agents-Architectures (Podman-Cloud). Expone un
+        endpoint /api/hello y /api/version. Sin base de datos: es
+        intencionalmente minimo para probar el pipeline de CI/CD, no para
+        representar una arquitectura real.
     </description>
 
     <properties>
+        <!-- Version de bytecode/API de Java con la que se compila. La
+             selecciona el maven-toolchains-plugin: el JDK 17 declarado en
+             /opt/toolchains/toolchains.xml dentro de la imagen-agente,
+             aunque Maven corra sobre el JDK 21 del agente. Ver ADR-0006. -->
         <java.version>17</java.version>
     </properties>
 
@@ -46,6 +51,28 @@
     <build>
         <finalName>reference-backend</finalName>
         <plugins>
+            <!-- Selecciona el JDK 17 como toolchain de compilacion. Requiere
+                 que el pipeline pase -t /opt/toolchains/toolchains.xml (lo
+                 aporta la imagen agent-maven-jdk17). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-toolchains-plugin</artifactId>
+                <version>3.2.0</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>toolchain</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <toolchains>
+                        <jdk>
+                            <version>17</version>
+                        </jdk>
+                    </toolchains>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

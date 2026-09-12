@@ -18,12 +18,17 @@ compartido y las cachés de otra forma.
 
 ## Decisión
 
-1. **Imágenes-agente híbridas**: `FROM docker.io/jenkins/inbound-agent:latest-jdk17`
-   + la toolchain por `apt-get`:
-   - `agent-maven-jdk17` (Maven + git),
+1. **Imágenes-agente híbridas**: `FROM docker.io/jenkins/inbound-agent:latest-rhel-ubi9-jdk21`
+   (UBI 9, JDK 21) + la toolchain por `dnf`:
+   - `agent-maven-jdk17` (Maven + **toolchain JDK 17** + git),
    - `agent-node20` (Node 20 vía NodeSource + git),
-   - `agent-podman` (cliente Podman + git).
+   - `agent-podman` (cliente Podman + kubectl/kubectx/kubens + git).
    Se versionan en `agent-images/` y las construye Ansible con `podman build`.
+
+   Se elige **UBI 9** por coherencia con AlmaLinux 9 del resto del laboratorio
+   (RHEL 9) y porque es una base soportada por Red Hat. El **JDK del agente es
+   21** (alineado con el del controller); cuando el build necesita otro JDK
+   (p. ej. Java 17) se aporta como **toolchain** (ver ADR-0006).
 
 2. **Usuario de contenedor `user: 0` en las plantillas**: con el motor rootful
    (ADR-0001), el root del contenedor es root real del host, por lo que tiene
@@ -38,6 +43,8 @@ compartido y las cachés de otra forma.
   inbound; el agente corre dentro del contenedor (aislado).
 - El workspace y las cachés funcionan sin `--userns=keep-id`.
 - Build de las imágenes reproducible (Ansible + Containerfiles versionados).
+- Base **UBI 9** coherente con AlmaLinux 9; el **JDK del agente (21)** se
+  desacopla del **JDK de compilación (17)** vía Maven Toolchains (ADR-0006).
 
 ### Negativas
 
@@ -48,8 +55,8 @@ compartido y las cachés de otra forma.
 
 ### Neutras / trade-offs
 
-- Node se instala desde NodeSource porque el de los repos base (Debian) es
-  demasiado antiguo para Angular 20.
+- Node se instala desde NodeSource porque da una versión 20 controlada
+  (los repos base pueden traer una más antigua).
 
 ## Alternativas consideradas
 
@@ -62,5 +69,6 @@ compartido y las cachés de otra forma.
 ## Referencias
 
 - `docs/Ephemeral-Jenkins-Agents-Podman-Cloud.md` (secciones 5 y 8)
+- [`ADR-0006`](./0006-jdk-agente-vs-jdk-compilacion-toolchains.md) (JDK del agente vs JDK de compilación)
 - `agent-images/` del lab
 - https://github.com/jenkinsci/docker-plugin

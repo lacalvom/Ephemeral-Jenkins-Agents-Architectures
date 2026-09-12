@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  toolchains.xml de la imagen agent-maven-jdk17.
+
+  Declara el JDK 17 para que Maven lo use al COMPILAR, aunque Maven y el
+  agente corran sobre el JDK 21 de la imagen base (ver ADR-0006).
+
+  El placeholder __JDK17_HOME__ lo sustituye el Containerfile en
+  build-time por la ruta real que instala el paquete java-17-openjdk-devel
+  (habitualmente /usr/lib/jvm/java-17-openjdk).
+-->
+<toolchains xmlns="http://maven.apache.org/TOOLCHAINS/1.1.0"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://maven.apache.org/TOOLCHAINS/1.1.0 http://maven.apache.org/xsd/toolchains-1.1.0.xsd">
+  <toolchain>
+    <type>jdk</type>
+    <provides>
+      <version>17</version>
+      <vendor>openjdk</vendor>
+    </provides>
+    <configuration>
+      <jdkHome>__JDK17_HOME__</jdkHome>
+    </configuration>
+  </toolchain>
+</toolchains>

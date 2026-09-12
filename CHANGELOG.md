@@ -28,6 +28,22 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   un kubeconfig de ejemplo vía Config File Provider (`configFileProvider` +
   `KUBECONFIG`). El kubeconfig no se hornea en la imagen.
 
+### Cambiado
+
+- **Podman-Cloud: base única UBI9 + JDK21 en todas las imágenes-agente.** Las
+  tres imágenes (`agent-maven-jdk17`, `agent-node20`, `agent-podman`) parten
+  ahora de `jenkins/inbound-agent:latest-rhel-ubi9-jdk21` (antes Debian
+  `latest-jdk17`) y usan `dnf` en vez de `apt-get`. El JDK del agente (21) se
+  alinea con el del controller.
+
+- **Podman-Cloud: JDK de compilación como Maven Toolchain.** `agent-maven-jdk17`
+  instala `java-17-openjdk-devel` y declara `/opt/toolchains/toolchains.xml`;
+  el `pom.xml` del backend activa `maven-toolchains-plugin` (JDK 17) y el
+  pipeline invoca `mvn -t /opt/toolchains/toolchains.xml`. Así una sola base de
+  agente (JDK 21) compila la aplicación con JDK 17. Ver
+  [ADR-0006](./Podman-Cloud/docs/adr/0006-jdk-agente-vs-jdk-compilacion-toolchains.md)
+  y la guía, sección 5.3.
+
 ### Correcciones (no breaking)
 
 - **Guia de Podman-Host: montaje del socket de Podman corregido en el ejemplo.**

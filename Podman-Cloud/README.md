@@ -14,7 +14,11 @@ A diferencia de Podman-Host (donde el pipeline crea contenedores con
 crea un contenedor-agente por build. Implicaciones:
 
 - Las imágenes deben ser **agentes Jenkins** (JDK + `jenkins/inbound-agent`) →
-  se construyen **imágenes-agente híbridas** (`agent-images/`).
+  se construyen **imágenes-agente híbridas** (`agent-images/`), todas sobre
+  `jenkins/inbound-agent:latest-rhel-ubi9-jdk21` (UBI 9 + JDK 21).
+- El **JDK del agente** (21) es independiente del **JDK de compilación**: si el
+  build necesita otro (Java 17 en el backend), se aporta como **Maven
+  Toolchain** (ver ADR-0006, sección 5.3 de la guía).
 - El **workspace y las cachés** se configuran en la **plantilla**, no en el
   pipeline (que solo usa `agent { label '...' }`).
 - La API y el motor son **rootful** (ver ADR-0001): encaja con `docker-plugin`
