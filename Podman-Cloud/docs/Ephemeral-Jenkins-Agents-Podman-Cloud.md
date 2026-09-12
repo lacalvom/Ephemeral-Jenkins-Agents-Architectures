@@ -28,7 +28,7 @@ Kubernetes: Jenkins "pide" un agente y el proveedor crea un contenedor.
 
 Pero hay **una diferencia de fondo que lo cambia todo**:
 
-| | Modelo A — `agent { docker {} }` (actual) | Modelo B — Podman-Cloud (plugin `docker-plugin`) |
+| | Podman-Host (`agent { docker {} }`) | Podman-Cloud (plugin `docker-plugin`) |
 |---|---|---|
 | Quién crea el contenedor | El código del pipeline, en cada `stage` | Jenkins (el *cloud provider*), al pedir un agente con cierto *label* |
 | Qué corre dentro del contenedor | Tus comandos (`sh`) vía `docker exec` | Un **agente Jenkins** (JNLP/SSH) que ejecuta el build |
@@ -36,35 +36,35 @@ Pero hay **una diferencia de fondo que lo cambia todo**:
 | Unidad de ejecución | Un contenedor **por stage**, efímero dentro de un build | Un contenedor **por build** (o por executor), que es un "nodo" |
 | Plugin | `docker-workflow` | `docker-plugin` ("Cloud" + "Docker Agent template") |
 
-La consecuencia práctica más importante: en el Modelo B **las imágenes de
+La consecuencia práctica más importante: en Podman-Cloud **las imágenes de
 toolchain puras (`ubi9/openjdk-17`, `ubi9/nodejs-20`, `ubi9/podman`) no
 sirven tal cual**, porque no son agentes Jenkins. Hay que construir imágenes
-**híbridas** (toolchain + agente). En el Modelo A eso no hace falta, y suele
+**híbridas** (toolchain + agente). En Podman-Host eso no hace falta, y suele
 ser la razón principal por la que se acaba migrando a `agent { docker {} }`.
 
 Todo lo demás (workspace, cachés, socket, selección) **se puede hacer**, pero
-cambia *dónde* se configura: en el Modelo B casi todo vive en la **plantilla
+cambia *dónde* se configura: en Podman-Cloud casi todo vive en la **plantilla
 del agente** (infraestructura), no en el código del pipeline.
 
 ---
 
 ## 2. Los tres modelos de agentes en Jenkins
 
-1. **Modelo A — Pipeline + `docker-workflow`** (lo que usa este laboratorio).
+1. **Podman-Host — Pipeline + `docker-workflow`**. Es el modelo del laboratorio **Podman-Host**, el unico implementado por ahora.
    `agent { docker { image '...'; reuseNode true; args '...' } }`. El plugin
    ejecuta `docker run` y luego **`docker exec`** cada paso dentro del
    contenedor. No hay agente dentro del contenedor: la "inteligencia" está en
    el nodo que hospeda el pipeline.
 
-2. **Modelo B — Podman-Cloud + `docker-plugin`** (la "definición cloud"
-   original). Se configura una *Cloud* apuntando a un *Docker host* (la API de
+2. **Podman-Cloud — `docker-plugin`** (la "definición cloud"
+   original). Se configura una *Cloud* apuntando a un *Podman host* (la API de
    Podman) y una o más *Docker Agent Templates*. Jenkins aprovisiona
    contenedores **como nodos/agentes** bajo demanda, según *labels*.
 
-3. **Modelo C — Kubernetes Cloud**. El equivalente moderno para clústeres
-   K8s; mismo concepto que el Modelo B pero el "pool" es el clúster. Fuera
-   del alcance de este laboratorio, pero conviene conocerlo porque comparte
-   casi toda la lógica con el Modelo B.
+3. **Jenkins-Kubernetes** — Cloud de Kubernetes. El equivalente moderno para
+   clústeres K8s; mismo concepto que **Podman-Cloud** pero el "pool" es el
+   clúster. Fuera del alcance de este repositorio, pero conviene conocerlo
+   porque comparte casi toda la lógica con **Podman-Cloud**.
 
 El `docker-plugin` y el `docker-workflow` son **plugins distintos**, aunque
 los nombres confundan (lo advierte el propio README del `docker-plugin`).
@@ -75,7 +75,7 @@ pueden convivir.
 
 ## 3. Qué hace Jenkins "por detrás" en cada modelo
 
-### 3.1 Modelo A (`docker-workflow`)
+### 3.1 Podman-Host (`docker-workflow`)
 
 Para cada bloque `agent { docker { ... } }`:
 
@@ -93,7 +93,7 @@ Puntos clave:
 - Los `args` que escribes en el pipeline son literalmente argumentos de
   `docker run` (ahí van `--userns=keep-id`, `-v maven-cache:...`, etc.).
 
-### 3.2 Modelo B (Podman-Cloud)
+### 3.2 Podman-Cloud
 
 Cuando llega un build que necesita el label `maven-jdk17` y no hay agente
 libre, el *cloud provider*:
@@ -120,7 +120,7 @@ Puntos clave:
 
 ---
 
-## 4. Infraestructura necesaria (Podman host)
+## 4. Infraestructura necesaria (Podman Host)
 
 ### 4.1 Exponer la API de Podman
 
@@ -189,7 +189,7 @@ puerto TCP del socket al `localhost` del controller.)
 
 ## 5. Las imágenes de agente (la implicación grande)
 
-En el Modelo B **cada imagen debe poder ejecutar un agente Jenkins** y
+En Podman-Cloud **cada imagen debe poder ejecutar un agente Jenkins** y
 conectarse al controller. Hay tres *launch methods*:
 
 | Launch method | Requisito de la imagen | Base recomendada |
@@ -203,7 +203,7 @@ WebSocket sobre el puerto HTTP 8080 es lo más cómodo; o el puerto 50000).
 
 ### 5.1 Imágenes híbridas (toolchain + agente)
 
-Para reproducir el pipeline del laboratorio necesitas, por ejemplo:
+Para reproducir el pipeline del laboratorio **Podman-Host** necesitas, por ejemplo:
 
 ```dockerfile
 # agent-maven-jdk17: toolchain Maven + agente Jenkins
@@ -223,19 +223,19 @@ USER jenkins
 ```
 
 > Fíjate en el matiz: la imagen del agente **siempre lleva un JDK** (para el
-> propio agente), aunque tu proyecto sea Node. En el Modelo A, la imagen de
+> propio agente), aunque tu proyecto sea Node. En Podman-Host, la imagen de
 > Node no necesitaba Java.
 
 ### 5.2 Agente que además construye imágenes (Podman-out-of-Podman)
 
 Si el stage empaqueta imágenes, el contenedor-agente necesita la **API de
-Podman del host** dentro. Igual que en el Modelo A:
+Podman del host** dentro. Igual que en Podman-Host:
 
 - montar el socket en la plantilla (`/run/user/1100/podman/podman.sock`),
 - `--security-opt label=disable` (SELinux, ver ADR-011),
 - `DOCKER_HOST`/`CONTAINER_HOST` apuntando al socket montado.
 
-En el Modelo B esto se pone en la **plantilla**, no en el pipeline. Además
+En Podman-Cloud esto se pone en la **plantilla**, no en el pipeline. Además
 puedes activar **"Expose DOCKER_HOST"** en la Cloud.
 
 ---
@@ -245,6 +245,11 @@ puedes activar **"Expose DOCKER_HOST"** en la Cloud.
 ### 6.1 Por UI
 
 `Manage Jenkins → Clouds → Add a new cloud → Docker`:
+
+> Los nombres de los campos son las etiquetas literales del plugin
+> (`docker-plugin`), que usa "Docker" en su interfaz aunque aquí el motor sea
+> **Podman**. Cuando en esta guía hablemos de "host", nos referimos al
+> **Podman Host**.
 
 - **Docker Cloud details**
   - *Docker Host URI*: `tcp://192.168.122.21:2375` (o `unix://...`, o con TLS).
@@ -332,7 +337,7 @@ jenkins:
 
 ## 7. Workspace (la pregunta central)
 
-### 7.1 Dónde vive el workspace en el Modelo B
+### 7.1 Dónde vive el workspace en Podman-Cloud
 
 Jenkins crea, **dentro del contenedor**, `<remoteFs>/workspace/<job>` (y
 `<remoteFs>/workspace/<job>@2` para builds concurrentes del mismo job). Como
@@ -340,7 +345,7 @@ el contenedor es efímero, por defecto **ese workspace se destruye** con él.
 
 ### 7.2 Cómo "compartirlo" con los agentes efímeros
 
-No existe `reuseNode` en el Modelo B. Lo que haces es **montar un directorio
+No existe `reuseNode` en Podman-Cloud. Lo que haces es **montar un directorio
 del host dentro de cada plantilla** y apuntar `remoteFs` a esa ruta:
 
 - Volumen en la plantilla:
@@ -348,18 +353,18 @@ del host dentro de cada plantilla** y apuntar `remoteFs` a esa ruta:
 - `remoteFs`: `/datos/jenkins/pipelines-workspace`
 
 Resultado: el workspace real queda en el **host** (`podman-host`), igual que
-en el Modelo A, y sobrevive a la destrucción del contenedor. Es exactamente
-la ruta que ya usa este laboratorio
+en **Podman-Host**, y sobrevive a la destrucción del contenedor. Es exactamente
+la ruta que ya usa el laboratorio **Podman-Host**
 (`/datos/jenkins/pipelines-workspace/workspace/reference-pipeline`), así que
 el código prepoblado por Ansible seguiría funcionando.
 
 ### 7.3 ¿Compartir workspace entre stages distintos?
 
-En el Modelo A, cada `stage` con `agent { docker }` abre su propio contenedor,
+En Podman-Host, cada `stage` con `agent { docker }` abre su propio contenedor,
 pero **todos comparten el workspace del host** (vía `reuseNode`), de modo que
 el `backend/target/` de un stage lo ve el siguiente.
 
-En el Modelo B, si cada stage pide un **label distinto** (Maven → Node →
+En Podman-Cloud, si cada stage pide un **label distinto** (Maven → Node →
 Podman), cada uno es un **agente distinto** (contenedor distinto). Para que
 compartan los artefactos hay dos opciones:
 
@@ -370,7 +375,7 @@ compartan los artefactos hay dos opciones:
    entre stages con `stash`/`unstash` o `archiveArtifacts` (más "cloud-native",
    pero más verboso y no persiste entre builds).
 
-En el laboratorio, la opción 1 es la que mantiene el comportamiento actual.
+En el laboratorio **Podman-Host**, la opción 1 es la que mantiene el comportamiento actual.
 
 ### 7.4 Concurrencia y `WorkspaceVolume`
 
@@ -387,8 +392,8 @@ En el laboratorio, la opción 1 es la que mantiene el comportamiento actual.
 
 ## 8. Cachés de Maven y npm
 
-En el Modelo A las cachés se pasaban en el código del pipeline, dentro de `args`
-(`-v maven-cache-${EXECUTOR_NUMBER}:/cache/.m2`). En el Modelo B **se mueven
+En Podman-Host las cachés se pasaban en el código del pipeline, dentro de `args`
+(`-v maven-cache-${EXECUTOR_NUMBER}:/cache/.m2`). En Podman-Cloud **se mueven
 a la plantilla**:
 
 ```yaml
@@ -421,7 +426,7 @@ Consideraciones:
 - Un contenedor = 1 executor (por defecto `mode: EXCLUSIVE`, ver el ejemplo
   JCasC). Para permitir varios builds en el mismo contenedor, `mode: NORMAL`
   con `numExecutors > 1`, pero **no es lo habitual** con agentes efímeros.
-- Como en el Modelo A, distintos stages pueden usar distintos labels:
+- Como en Podman-Host, distintos stages pueden usar distintos labels:
 
 ```groovy
 stage('Backend')   { agent { label 'maven-jdk17' }   ; steps { sh 'cd backend && mvn -B clean package' } }
@@ -431,7 +436,7 @@ stage('Imagen')    { agent { label 'podman-build' }   ; steps { sh 'podman build
 
 ---
 
-## 10. Ejemplo de pipeline completo (Modelo B)
+## 10. Ejemplo de pipeline completo (Podman-Cloud)
 
 ```groovy
 pipeline {
@@ -479,7 +484,7 @@ pipeline {
 }
 ```
 
-Diferencias con el pipeline del Modelo A:
+Diferencias con el pipeline de Podman-Host:
 - No hay `configFileProvider(...)` para settings de Maven/npm si decides
   hornear la config en la imagen del agente (o puedes seguir usándolo).
 - No hay `args` con `-v`/`--userns`: **todo el "chrome" de Docker está en la
@@ -491,7 +496,7 @@ Diferencias con el pipeline del Modelo A:
 
 ## 11. Ventajas, inconvenientes y cuándo elegir cada modelo
 
-### Modelo B (Cloud) — ventajas
+### Podman-Cloud — ventajas
 
 - **Mentalidad "nodo"**: los agentes aparecen en `/computer`, con labels,
   retención, *idle timeout*, etc. Muy natural si vienes de Kubernetes.
@@ -503,7 +508,7 @@ Diferencias con el pipeline del Modelo A:
   stages; solo labels.
 - `containerCap` limita el consumo.
 
-### Modelo B (Cloud) — inconvenientes
+### Podman-Cloud — inconvenientes
 
 - **Las imágenes deben ser agentes Jenkins** (JDK + inbound-agent/sshd). Es el
   coste principal: mantenimiento de imágenes híbridas.
@@ -515,7 +520,7 @@ Diferencias con el pipeline del Modelo A:
   aparecen en los logs del *cloud* y en `/computer`, no en el log del stage.
 - Escribir JCasC de la Cloud es verboso y sensible a versiones.
 
-### Modelo A (`agent { docker {} }`) — ventajas
+### Podman-Host (`agent { docker {} }`) — ventajas
 
 - **Cualquier imagen vale** (toolchain pura). Menos imágenes que mantener.
 - Todo se ve en el código del pipeline: los `-v`, el `--userns`, las cachés. Más
@@ -524,27 +529,27 @@ Diferencias con el pipeline del Modelo A:
   pipeline.
 - Depuración directa en el log del stage.
 
-### Modelo A — inconvenientes
+### Podman-Host — inconvenientes
 
 - El código del pipeline conoce Docker (`args`, `--userns=keep-id`, mounts): más
   acoplado y más fácil de romper.
 - No hay "nodos" de agente visibles; el concepto de agente es el nodo
   anfitrión (uno solo), y los contenedores son sidecars efímeros.
-- Menos aislamiento entre proyectos que el Modelo B.
+- Menos aislamiento entre proyectos que Podman-Cloud.
 
 ### Recomendación
 
-- **Un solo nodo Podman, varios proyectos, toolchains cambiantes**: Modelo A
-  (el actual). Es lo que mejor encaja y lo que menos imágenes exige.
+- **Un solo nodo Podman, varios proyectos, toolchains cambiantes**: **Podman-Host**
+  (el implementado). Es lo que mejor encaja y lo que menos imágenes exige.
 - **Muchos equipos/proyectos, necesidad de labels, cuotas y aislamiento**:
-  Modelo B (o Kubernetes, Modelo C). Merece la pena cuando el coste de
+  **Podman-Cloud** (o **Jenkins-Kubernetes**). Merece la pena cuando el coste de
   construir imágenes-agente se amortiza.
 - Puedes **tener ambos**: `docker-plugin` para algunos agentes "ricos" y
   `agent { docker {} }` para los efímeros ligeros, dentro del mismo Jenkins.
 
 ---
 
-## 12. Checklist para migrar el laboratorio al Modelo B
+## 12. Checklist para migrar el laboratorio a Podman-Cloud
 
 1. Exponer la API de Podman (SSH-tunnel o TCP+TLS; TCP sin TLS solo en lab).
 2. Añadir la Cloud en Jenkins (UI o JCasC) apuntando a esa URI; **Test
@@ -569,7 +574,7 @@ Diferencias con el pipeline del Modelo A:
 
 ---
 
-## 13. Troubleshooting (Modelo B)
+## 13. Troubleshooting (Podman-Cloud)
 
 - **"Agent is being disconnected" / el contenedor arranca pero no conecta**:
   el controller no es alcanzable desde el contenedor. Revisa `jenkinsUrl`
