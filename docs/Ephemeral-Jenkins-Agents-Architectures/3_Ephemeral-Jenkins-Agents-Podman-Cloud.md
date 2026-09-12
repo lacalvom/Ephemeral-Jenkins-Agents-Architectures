@@ -611,4 +611,4 @@ Diferencias con el pipeline del Modelo A:
 
 ---
 
-*Licencia: [CC BY 4.0](./LICENSE). © 2026 jenkins-podman-lab contributors.*
+*Licencia: [CC BY 4.0](./LICENSE). © 2026 Luis Alberto Calvo Muñiz.*

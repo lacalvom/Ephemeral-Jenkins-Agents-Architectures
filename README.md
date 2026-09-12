@@ -1002,7 +1002,7 @@ Las decisiones tecnicas importantes estan documentadas como ADRs en
 
 ---
 
-**Autor:** DevOps Team
+**Autor:** Luis Alberto Calvo Muñiz <luis.calvo@cloudsdoers.com>
 **Version:** 0.1.0
 **Fecha:** 2026-09-09
 **Cambios:** ver [CHANGELOG.md](./CHANGELOG.md)

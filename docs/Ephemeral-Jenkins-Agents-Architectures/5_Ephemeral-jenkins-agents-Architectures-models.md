@@ -423,4 +423,4 @@ Se pueden **combinar** (p. ej. agentes "ricos" en K8s y ligeros con
 
 ---
 
-*Licencia: [CC BY 4.0](./LICENSE). © 2026 jenkins-podman-lab contributors.*
+*Licencia: [CC BY 4.0](./LICENSE). © 2026 Luis Alberto Calvo Muñiz.*
