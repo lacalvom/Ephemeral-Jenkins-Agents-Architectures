@@ -130,7 +130,7 @@ podman push ghcr.io/mi-org/agent-jdk8-ubi8:1.0.0
 
 ## Como usarla desde Jenkins
 
-En el `Jenkinsfile` o pipeline declarativo:
+En el código del pipeline:
 
 ```groovy
 pipeline {

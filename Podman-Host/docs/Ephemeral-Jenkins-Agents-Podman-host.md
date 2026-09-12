@@ -2,7 +2,7 @@
 
 > **Modelo: `Podman-Host`.** Implementado con el plugin `docker-workflow`
 > (`agent { docker { ... } }`): contenedores efímeros creados **desde el propio
-> `Jenkinsfile`**, un contenedor por stage, sobre un Podman Host.
+> código del pipeline**, un contenedor por stage, sobre un Podman Host.
 
 Esta guía define el estándar operativo para la implementación, configuración y uso de agentes efímeros en Jenkins utilizando Podman en modo rootless. Esta arquitectura garantiza entornos de compilación limpios, aislados por etapa y seguros, operando bajo las normativas de sistemas empresariales (RHEL/UBI 9) y mitigando los problemas de concurrencia de infraestructura.
 

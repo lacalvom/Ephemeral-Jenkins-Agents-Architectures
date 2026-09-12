@@ -38,7 +38,7 @@ tratan los tres modelos.
 |---|---|---|---|
 | Plugin | `docker-workflow` | `docker-plugin` | `kubernetes-plugin` |
 | Sintaxis típica | `agent { docker { image } }` | Cloud + Docker Agent Template + `agent { label }` | Cloud + Pod Template + `agent { kubernetes }` |
-| Quién crea el entorno | el `Jenkinsfile` | Jenkins (Cloud) | Jenkins (Cloud) |
+| Quién crea el entorno | el código del pipeline | Jenkins (Cloud) | Jenkins (Cloud) |
 | Entorno | contenedor | contenedor (nodo-agente) | Pod (nodo-agente) |
 | Grano | **1 contenedor por stage** | **1 contenedor por build** | **1 Pod por build**, varios contenedores dentro |
 | ¿Imagen necesita agente? | **No** | **Sí** (JDK + inbound/sshd) | **Sí** (o `agentInjection`) |
@@ -56,7 +56,7 @@ tratan los tres modelos.
 ### 3.1 Concepto
 
 El plugin **`docker-workflow`** (parte de Pipeline) permite declarar en el
-propio `Jenkinsfile` un contenedor por stage:
+propio código del pipeline un contenedor por stage:
 
 ```groovy
 stage('Backend') {

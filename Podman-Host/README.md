@@ -528,7 +528,7 @@ SOPS_AGE_KEY_FILE=/root/.config/age/keys.txt \
 
 ### Consumir un secret en el pipeline
 
-Sin importar que driver se uso para crearlo, el `Jenkinsfile` es
+Sin importar que driver se uso para crearlo, el código del pipeline es
 **agnostico**: solo referencia el nombre del secret con `--secret` en
 los `args` del agente Docker. Podman resuelve el driver (y lo descifra
 si aplica) internamente, lo inyecta en el contenedor efimero y lo borra

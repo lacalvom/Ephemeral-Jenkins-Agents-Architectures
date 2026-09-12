@@ -41,7 +41,7 @@ De esas cuatro respuestas surgen los tres modelos.
 |---|---|---|---|
 | Plugin | `docker-workflow` | `docker-plugin` | `kubernetes-plugin` |
 | Sintaxis | `agent { docker { image } }` | Cloud + Docker Agent Template + `agent { label }` | Cloud + Pod Template + `agent { kubernetes }` |
-| Quién crea el entorno | el `Jenkinsfile` | Jenkins (Cloud) | Jenkins (Cloud) |
+| Quién crea el entorno | el código del pipeline | Jenkins (Cloud) | Jenkins (Cloud) |
 | Entorno | contenedor | contenedor (nodo-agente) | Pod (nodo-agente) |
 | Grano | 1 contenedor **por stage** | 1 contenedor **por build** | 1 Pod **por build**, varios contenedores |
 | ¿Imagen necesita agente? | **No** | **Sí** (JDK + inbound/sshd) | **Sí** (o `agentInjection`) |
@@ -79,7 +79,7 @@ Nombres que usaremos:
 
 ### 4.1 Concepto
 
-El plugin **`docker-workflow`** permite declarar, en el propio `Jenkinsfile`,
+El plugin **`docker-workflow`** permite declarar, en el propio código del pipeline,
 un contenedor por stage. Es el modelo del laboratorio Podman.
 
 ```groovy

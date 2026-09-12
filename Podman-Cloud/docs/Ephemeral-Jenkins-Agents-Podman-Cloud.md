@@ -7,7 +7,7 @@
 > Documento complementario a `Ephemeral-Jenkins-Agents-Podman-host.md`.
 > Aquí se analiza **el otro modelo** de agentes efímeros en Jenkins: definir
 > la infraestructura como una **"Cloud" (Docker plugin) con plantillas de
-> agente**, en lugar de crear contenedores desde el propio `Jenkinsfile` con
+> agente**, en lugar de crear contenedores desde el propio código del pipeline con
 > `agent { docker { ... } }`.
 >
 > Responde, en orden, a las dudas planteadas: ¿se puede? ¿qué implicaciones
@@ -30,7 +30,7 @@ Pero hay **una diferencia de fondo que lo cambia todo**:
 
 | | Modelo A — `agent { docker {} }` (actual) | Modelo B — Podman-Cloud (plugin `docker-plugin`) |
 |---|---|---|
-| Quién crea el contenedor | El `Jenkinsfile`, en cada `stage` | Jenkins (el *cloud provider*), al pedir un agente con cierto *label* |
+| Quién crea el contenedor | El código del pipeline, en cada `stage` | Jenkins (el *cloud provider*), al pedir un agente con cierto *label* |
 | Qué corre dentro del contenedor | Tus comandos (`sh`) vía `docker exec` | Un **agente Jenkins** (JNLP/SSH) que ejecuta el build |
 | ¿La imagen necesita Java + agente? | **No** (vale cualquier imagen) | **Sí** (JDK + `jenkins/inbound-agent` o sshd + JDK) |
 | Unidad de ejecución | Un contenedor **por stage**, efímero dentro de un build | Un contenedor **por build** (o por executor), que es un "nodo" |
@@ -44,7 +44,7 @@ ser la razón principal por la que se acaba migrando a `agent { docker {} }`.
 
 Todo lo demás (workspace, cachés, socket, selección) **se puede hacer**, pero
 cambia *dónde* se configura: en el Modelo B casi todo vive en la **plantilla
-del agente** (infraestructura), no en el `Jenkinsfile`.
+del agente** (infraestructura), no en el código del pipeline.
 
 ---
 
@@ -387,7 +387,7 @@ En el laboratorio, la opción 1 es la que mantiene el comportamiento actual.
 
 ## 8. Cachés de Maven y npm
 
-En el Modelo A las cachés se pasaban en el `Jenkinsfile`, dentro de `args`
+En el Modelo A las cachés se pasaban en el código del pipeline, dentro de `args`
 (`-v maven-cache-${EXECUTOR_NUMBER}:/cache/.m2`). En el Modelo B **se mueven
 a la plantilla**:
 
@@ -518,7 +518,7 @@ Diferencias con el pipeline del Modelo A:
 ### Modelo A (`agent { docker {} }`) — ventajas
 
 - **Cualquier imagen vale** (toolchain pura). Menos imágenes que mantener.
-- Todo se ve en el `Jenkinsfile`: los `-v`, el `--userns`, las cachés. Más
+- Todo se ve en el código del pipeline: los `-v`, el `--userns`, las cachés. Más
   "todo en el código" (GitOps) y más fácil de versionar por proyecto.
 - Un contenedor **por stage**, muy efímero; el workspace lo controla el
   pipeline.
@@ -526,7 +526,7 @@ Diferencias con el pipeline del Modelo A:
 
 ### Modelo A — inconvenientes
 
-- El `Jenkinsfile` conoce Docker (`args`, `--userns=keep-id`, mounts): más
+- El código del pipeline conoce Docker (`args`, `--userns=keep-id`, mounts): más
   acoplado y más fácil de romper.
 - No hay "nodos" de agente visibles; el concepto de agente es el nodo
   anfitrión (uno solo), y los contenedores son sidecars efímeros.

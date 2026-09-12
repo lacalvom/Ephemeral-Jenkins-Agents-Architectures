@@ -96,7 +96,7 @@ podman push quay.io/mi-org/agent-jdk8-maven-ubi8:1.0.0
 
 ## Como usarla desde Jenkins
 
-En el `Jenkinsfile`:
+En el código del pipeline:
 
 ```groovy
 pipeline {

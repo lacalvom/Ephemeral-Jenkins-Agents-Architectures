@@ -11,7 +11,7 @@ Jenkins aprovisiona **contenedores-agente bajo demanda** sobre un Podman Host
 usando el plugin **`docker-plugin`** (una *Cloud* + *Docker Agent Templates*),
 seleccionables por *label*. A diferencia de Podman-Host, aquí las imágenes
 deben ser **agentes Jenkins** (JDK + `jenkins/inbound-agent`) y el workspace y
-las cachés se configuran en la **plantilla**, no en el `Jenkinsfile`.
+las cachés se configuran en la **plantilla**, no en el código del pipeline.
 
 Referencia: [guía del modelo Podman-Cloud](docs/Ephemeral-Jenkins-Agents-Podman-Cloud.md).
 
