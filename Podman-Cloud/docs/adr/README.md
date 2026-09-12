@@ -11,6 +11,6 @@ anade aqui los registros siguiendo [`TEMPLATE.md`](./TEMPLATE.md), numerados
 Guias relacionadas:
 
 - Guia del modelo:
-  [`../guides/Ephemeral-Jenkins-Agents-Podman-Cloud.md`](../guides/Ephemeral-Jenkins-Agents-Podman-Cloud.md)
+  [`../Ephemeral-Jenkins-Agents-Podman-Cloud.md`](../Ephemeral-Jenkins-Agents-Podman-Cloud.md)
 - Comparativa general:
   [`../../../guides/Ephemeral-jenkins-Agents-Architectures-Compartive-guide.md`](../../../guides/Ephemeral-jenkins-Agents-Architectures-Compartive-guide.md)

@@ -4,7 +4,7 @@
 > [`Ephemeral-Jenkins-Agents-Architectures`](../README.md): agentes efímeros
 > con `docker-workflow` (`agent { docker { ... } }`), un contenedor por stage,
 > sobre un Podman Host. Ver la
-> [guía del modelo](docs/guides/Ephemeral-Jenkins-Agents-Podman-host.md).
+> [guía del modelo](docs/Ephemeral-Jenkins-Agents-Podman-host.md).
 
 Home-lab reproducible que despliega una arquitectura completa de **Jenkins
 Controller + Podman Host** sobre dos VMs AlmaLinux 9, con agentes Jenkins
@@ -186,9 +186,10 @@ Podman-Host/
 └── legacy-images/                         # Imagenes de agentes con toolchains antiguos
 ```
 
-> Los **ADRs del modelo Podman-Host** estan en [`docs/adr/`](docs/adr/) y su
-> guia en [`docs/guides/`](docs/guides/). Las guias generales (comparativa y
-> documento unificado) y los demas modelos estan en la raiz del repositorio.
+> En este laboratorio, los **ADRs** estan en [`docs/adr/`](docs/adr/) y la
+> **guia del modelo** directamente en [`docs/`](docs/). Las guias generales
+> (comparativa y documento unificado) y los demas modelos estan en la raiz
+> del repositorio.
 
 ---
 
@@ -947,9 +948,9 @@ Las decisiones tecnicas importantes estan documentadas como ADRs en
 **Guias de arquitecturas de agentes efimeros**:
 
 1. [Comparativa de los tres modelos](../guides/Ephemeral-jenkins-Agents-Architectures-Compartive-guide.md) — panorama de Podman-Host, Podman-Cloud y Jenkins-Kubernetes.
-2. [Podman-Host](docs/guides/Ephemeral-Jenkins-Agents-Podman-host.md) — agentes efimeros con `docker-workflow` (`agent { docker { ... } }`), un contenedor por stage.
-3. [Podman-Cloud](../Podman-Cloud/docs/guides/Ephemeral-Jenkins-Agents-Podman-Cloud.md) — Cloud con `docker-plugin` y Docker Agent Templates.
-4. [Jenkins-Kubernetes](../Jenkins-Kubernetes/docs/guides/Ephemeral-Jenkins-Agents-Kubernetes.md) — agentes efimeros sobre Kubernetes (controller dentro o fuera del cluster).
+2. [Podman-Host](docs/Ephemeral-Jenkins-Agents-Podman-host.md) — agentes efimeros con `docker-workflow` (`agent { docker { ... } }`), un contenedor por stage.
+3. [Podman-Cloud](../Podman-Cloud/docs/Ephemeral-Jenkins-Agents-Podman-Cloud.md) — Cloud con `docker-plugin` y Docker Agent Templates.
+4. [Jenkins-Kubernetes](../Jenkins-Kubernetes/docs/Ephemeral-Jenkins-Agents-Kubernetes.md) — agentes efimeros sobre Kubernetes (controller dentro o fuera del cluster).
 5. [Documento unificado](../guides/Ephemeral-jenkins-agents-Architectures-models-complete-guide.md) — todo en uno, como referencia.
 
 ---
@@ -988,7 +989,7 @@ Las decisiones tecnicas importantes estan documentadas como ADRs en
   [Apache 2.0](../LICENSE), con el aviso de atribucion en
   [NOTICE](../NOTICE).
 - **Guias de arquitecturas de agentes efimeros**
-  (`guides/` y `docs/guides/`): licencia
+  (`guides/` y `docs/`): licencia
   [CC BY 4.0](../guides/LICENSE)
   (Creative Commons Atribucion 4.0 Internacional).
 - **Marcas:** "Cloudsdoers" y su logotipo son marcas de Cloudsdoers

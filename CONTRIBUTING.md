@@ -20,7 +20,7 @@ resume como esta organizado el proyecto y como proponer cambios.
   Architecture Decision Records. **Todo cambio tecnico relevante debe ir
   acompanado de su ADR.**
 - `guides/` — guias generales (comparativa y documento unificado). Las guias
-  por modelo viven en `<lab>/docs/guides/`.
+  por modelo viven en `<lab>/docs/`.
 
 ## Flujo de trabajo
 

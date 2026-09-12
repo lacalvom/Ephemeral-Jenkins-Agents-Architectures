@@ -9,9 +9,9 @@ es común y vive en `docs/`.
 
 | Modelo | Carpeta (lab) | Guía | Plugin | Entorno |
 |---|---|---|---|---|
-| **Podman-Host** | [`Podman-Host/`](./Podman-Host/) | [guía](./Podman-Host/docs/guides/Ephemeral-Jenkins-Agents-Podman-host.md) | `docker-workflow` (`agent { docker { ... } }`) | contenedor por stage |
-| **Podman-Cloud** | [`Podman-Cloud/`](./Podman-Cloud/) | [guía](./Podman-Cloud/docs/guides/Ephemeral-Jenkins-Agents-Podman-Cloud.md) | `docker-plugin` (Cloud + Docker Agent Templates) | contenedor-agente por build |
-| **Jenkins-Kubernetes** | [`Jenkins-Kubernetes/`](./Jenkins-Kubernetes/) | [guía](./Jenkins-Kubernetes/docs/guides/Ephemeral-Jenkins-Agents-Kubernetes.md) | `kubernetes-plugin` | Pod-agente por build |
+| **Podman-Host** | [`Podman-Host/`](./Podman-Host/) | [guía](./Podman-Host/docs/Ephemeral-Jenkins-Agents-Podman-host.md) | `docker-workflow` (`agent { docker { ... } }`) | contenedor por stage |
+| **Podman-Cloud** | [`Podman-Cloud/`](./Podman-Cloud/) | [guía](./Podman-Cloud/docs/Ephemeral-Jenkins-Agents-Podman-Cloud.md) | `docker-plugin` (Cloud + Docker Agent Templates) | contenedor-agente por build |
+| **Jenkins-Kubernetes** | [`Jenkins-Kubernetes/`](./Jenkins-Kubernetes/) | [guía](./Jenkins-Kubernetes/docs/Ephemeral-Jenkins-Agents-Kubernetes.md) | `kubernetes-plugin` | Pod-agente por build |
 
 **Empieza por la [comparativa de los tres modelos](./guides/Ephemeral-jenkins-Agents-Architectures-Compartive-guide.md)**
 y, si prefieres un único documento, el
@@ -43,14 +43,18 @@ Ephemeral-Jenkins-Agents-Architectures/
 │   ├── deploy.sh / destroy.sh / .env.example
 │   ├── ansible/  jenkins-config/  legacy-images/
 │   └── docs/
-│       ├── adr/                  #   ADRs del lab Podman-Host
-│       └── guides/               #   2_... (guia del modelo Podman-Host)
+│       ├── adr/                                    # ADRs del lab Podman-Host
+│       └── Ephemeral-Jenkins-Agents-Podman-host.md # guia del modelo
 ├── Podman-Cloud/                 # Lab del modelo Podman-Cloud (en preparacion)
 │   ├── README.md
-│   └── docs/guides/              #   3_... (guia del modelo Podman-Cloud)
+│   └── docs/
+│       ├── adr/                                    # ADRs del lab Podman-Cloud
+│       └── Ephemeral-Jenkins-Agents-Podman-Cloud.md
 └── Jenkins-Kubernetes/           # Lab del modelo Jenkins-Kubernetes (en preparacion)
     ├── README.md
-    └── docs/guides/              #   4_... (guia del modelo Jenkins-Kubernetes)
+    └── docs/
+        ├── adr/                                    # ADRs del lab Jenkins-Kubernetes
+        └── Ephemeral-Jenkins-Agents-Kubernetes.md
 ```
 
 Cada laboratorio de modelo es **autocontenido**: incluye su provisioning
@@ -70,8 +74,8 @@ licencias.
 
 - [Guias generales](./guides/) — comparativa de los tres modelos y documento
   unificado.
-- Guias por modelo: `Podman-Host/docs/guides/`, `Podman-Cloud/docs/guides/` y
-  `Jenkins-Kubernetes/docs/guides/`.
+- Guias por modelo: `Podman-Host/docs/`, `Podman-Cloud/docs/` y
+  `Jenkins-Kubernetes/docs/`.
 - [ADRs](./Podman-Host/docs/adr/README.md) — decisiones tecnicas del laboratorio Podman-Host.
 
 ## Licencia

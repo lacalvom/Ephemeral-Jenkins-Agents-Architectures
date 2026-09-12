@@ -164,7 +164,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Los **ADRs** pasan a `<lab>/docs/adr/` (cada lab documenta lo suyo).
     `Podman-Cloud/docs/adr/` y `Jenkins-Kubernetes/docs/adr/` se crean con su
     `README.md` y `TEMPLATE.md`.
-  - La **guia de cada modelo** pasa a `<lab>/docs/guides/`.
+  - La **guia de cada modelo** pasa a `<lab>/docs/`.
   - En la raiz, `docs/` se renombra a **`guides/`** y contiene solo la
     **comparativa** y el **documento unificado** (mas su `LICENSE` CC BY 4.0).
   - Se eliminan los **prefijos de orden de lectura** (`N_`) de los ficheros de
@@ -226,8 +226,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - **Licencia del codigo cambiada de MIT a Apache 2.0.** Se reemplaza el
     `LICENSE` de la raiz por el texto completo de Apache License 2.0 y se
     anade un fichero `NOTICE` con la atribucion. Aporta concesion explicita
-    de patentes y terminos de contribucion mas claros. Las guias de
-    `docs/guides/` siguen bajo CC BY 4.0.
+    de patentes y terminos de contribucion mas claros. Las guias (en
+    `guides/` y `<lab>/docs/`) siguen bajo CC BY 4.0.
   - **Atribucion a la marca Cloudsdoers y cabeceras SPDX.** El copyright
     (licencias y `NOTICE`) y los pies de las guias citan a "Cloudsdoers
     (Luis Alberto Calvo Muniz)"; se anade un aviso de marcas en el `NOTICE`
@@ -240,7 +240,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   posibles (`Podman-Host` con `docker-workflow`, `Podman-Cloud` con
   `docker-plugin` y `Jenkins-Kubernetes` con `kubernetes-plugin`), la
   comparativa general y el documento unificado (en `guides/`), y la guia de
-  cada modelo dentro de su lab (`<lab>/docs/guides/`). Incluye como se
+  cada modelo dentro de su lab (`<lab>/docs/`). Incluye como se
   gestionan workspace, caches y seleccion de agente en cada modelo.
 
 - **Licencia CC BY 4.0 para las guias** (`guides/LICENSE`): se anade un

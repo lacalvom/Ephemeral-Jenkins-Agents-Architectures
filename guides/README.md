@@ -1,7 +1,7 @@
 # Arquitecturas de Agentes Efímeros en Jenkins — Guías generales
 
 Documentación **general** (compara los tres modelos y los reúne). La guía
-específica de **cada modelo vive dentro de su laboratorio** (`<lab>/docs/guides/`).
+específica de **cada modelo vive dentro de su laboratorio** (`<lab>/docs/`).
 
 ## En esta carpeta (raíz `guides/`)
 
@@ -14,9 +14,9 @@ específica de **cada modelo vive dentro de su laboratorio** (`<lab>/docs/guides
 
 | Modelo | Guía |
 |---|---|
-| **Podman-Host** | [`Podman-Host/docs/guides/Ephemeral-Jenkins-Agents-Podman-host.md`](../Podman-Host/docs/guides/Ephemeral-Jenkins-Agents-Podman-host.md) |
-| **Podman-Cloud** | [`Podman-Cloud/docs/guides/Ephemeral-Jenkins-Agents-Podman-Cloud.md`](../Podman-Cloud/docs/guides/Ephemeral-Jenkins-Agents-Podman-Cloud.md) |
-| **Jenkins-Kubernetes** | [`Jenkins-Kubernetes/docs/guides/Ephemeral-Jenkins-Agents-Kubernetes.md`](../Jenkins-Kubernetes/docs/guides/Ephemeral-Jenkins-Agents-Kubernetes.md) |
+| **Podman-Host** | [`Podman-Host/docs/Ephemeral-Jenkins-Agents-Podman-host.md`](../Podman-Host/docs/Ephemeral-Jenkins-Agents-Podman-host.md) |
+| **Podman-Cloud** | [`Podman-Cloud/docs/Ephemeral-Jenkins-Agents-Podman-Cloud.md`](../Podman-Cloud/docs/Ephemeral-Jenkins-Agents-Podman-Cloud.md) |
+| **Jenkins-Kubernetes** | [`Jenkins-Kubernetes/docs/Ephemeral-Jenkins-Agents-Kubernetes.md`](../Jenkins-Kubernetes/docs/Ephemeral-Jenkins-Agents-Kubernetes.md) |
 
 ## ADRs
 
