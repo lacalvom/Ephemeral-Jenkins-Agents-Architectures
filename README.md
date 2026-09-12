@@ -1009,7 +1009,7 @@ Las decisiones tecnicas importantes estan documentadas como ADRs en
 
 ---
 
-**Autor:** Luis Alberto Calvo Muñiz <luis.calvo@cloudsdoers.com>
+**Autor:** Cloudsdoers — Luis Alberto Calvo Muñiz <luis.calvo@cloudsdoers.com>
 **Version:** 0.1.0
 **Fecha:** 2026-09-09
 **Cambios:** ver [CHANGELOG.md](./CHANGELOG.md)
@@ -1026,3 +1026,7 @@ Las decisiones tecnicas importantes estan documentadas como ADRs en
   (`docs/Ephemeral-Jenkins-Agents-Architectures/`): licencia
   [CC BY 4.0](./docs/Ephemeral-Jenkins-Agents-Architectures/LICENSE)
   (Creative Commons Atribucion 4.0 Internacional).
+- **Marcas:** "Cloudsdoers" y su logotipo son marcas de Cloudsdoers
+  (https://cloudsdoers.com). Ninguna de las licencias anteriores concede
+  derechos sobre ellas; solo se permite el uso razonable y habitual para
+  atribuir el origen del material. Ver [NOTICE](./NOTICE).

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Cloudsdoers
 ---
 - name: "podman_host | Instalar paquetes de Podman y Java"
   ansible.builtin.dnf:

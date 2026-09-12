@@ -206,6 +206,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
     anade un fichero `NOTICE` con la atribucion. Aporta concesion explicita
     de patentes y terminos de contribucion mas claros. Las guias de
     `docs/Ephemeral-Jenkins-Agents-Architectures/` siguen bajo CC BY 4.0.
+  - **Atribucion a la marca Cloudsdoers y cabeceras SPDX.** El copyright
+    (licencias y `NOTICE`) y los pies de las guias citan a "Cloudsdoers
+    (Luis Alberto Calvo Muniz)"; se anade un aviso de marcas en el `NOTICE`
+    y el README. Se agregan cabeceras SPDX (`Apache-2.0`) a `deploy.sh`,
+    `destroy.sh`, los YAML/plantillas de Ansible y el helper bcrypt.
 
 ### Añadido
 

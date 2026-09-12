@@ -699,4 +699,4 @@ pipeline {
 
 ---
 
-*Licencia: [CC BY 4.0](./LICENSE). © 2026 Luis Alberto Calvo Muñiz.*
+*Licencia: [CC BY 4.0](./LICENSE). © 2026 Cloudsdoers.*

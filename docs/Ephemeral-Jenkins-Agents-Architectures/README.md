@@ -36,6 +36,9 @@ Los documentos de esta carpeta se distribuyen bajo la licencia
 El código del repositorio `jenkins-podman-lab` usa por separado la licencia
 Apache 2.0 ([`LICENSE`](../../LICENSE)).
 
+"Cloudsdoers" y su logotipo son marcas de Cloudsdoers (https://cloudsdoers.com).
+Las licencias anteriores no conceden derechos sobre ellas.
+
 ## Documentos relacionados (en el repo)
 
 - [Architecture Decision Records](../adr/README.md) — decisiones del laboratorio
@@ -43,4 +46,4 @@ Apache 2.0 ([`LICENSE`](../../LICENSE)).
 
 ---
 
-*Licencia: [CC BY 4.0](./LICENSE). © 2026 Luis Alberto Calvo Muñiz.*
+*Licencia: [CC BY 4.0](./LICENSE). © 2026 Cloudsdoers.*

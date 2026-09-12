@@ -1,11 +1,20 @@
 jenkins-podman-lab
-Copyright 2026 Luis Alberto Calvo Muñiz <luis.calvo@cloudsdoers.com>
+Copyright 2026 Cloudsdoers (Luis Alberto Calvo Muniz) <luis.calvo@cloudsdoers.com>
 
-Este producto incluye software desarrollado por Luis Alberto Calvo Muñiz
-(Cloudsdoers).
+Cloudsdoers — https://cloudsdoers.com
+
+Este producto incluye software desarrollado por Cloudsdoers.
 
 El codigo del repositorio se distribuye bajo la licencia Apache 2.0
 (ver el fichero LICENSE). Las guias de
 docs/Ephemeral-Jenkins-Agents-Architectures/ se distribuyen aparte bajo la
 licencia Creative Commons Atribucion 4.0 Internacional (CC BY 4.0)
 (ver el fichero LICENSE de esa carpeta).
+
+-----------------------------------------------------------------------
+Marcas
+-----------------------------------------------------------------------
+"Cloudsdoers" y su logotipo son marcas de Cloudsdoers. Las licencias de
+este repositorio (Apache 2.0 para el codigo, CC BY 4.0 para las guias) NO
+conceden derecho alguno sobre dichas marcas; solo se permite el uso
+razonable y habitual para atribuir el origen del material.

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Cloudsdoers
 ---
 jenkins_cli_jar: "/var/cache/jenkins-cli/jenkins-cli.jar"
 jenkins_cli_url: "http://127.0.0.1:{{ jenkins_http_port }}/jnlpJars/jenkins-cli.jar"

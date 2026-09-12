@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Cloudsdoers
 """Genera un hash bcrypt en formato $2a$ compatible con Jenkins JCasC."""
 import sys
 import bcrypt
