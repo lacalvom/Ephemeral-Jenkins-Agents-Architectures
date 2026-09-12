@@ -64,7 +64,7 @@ stage('Backend') {
         docker {
             image 'registry.access.redhat.com/ubi9/openjdk-17:latest'
             reuseNode true
-            args '--userns=keep-id -v maven-cache:/cache/.m2'
+            args '--userns=keep-id -v maven-cache-${EXECUTOR_NUMBER}:/cache/.m2'
         }
     }
     steps { sh 'cd backend && mvn -B clean package' }
@@ -94,7 +94,7 @@ stage('Backend') {
 ### 3.4 Workspace, cachés y selección
 
 - **Workspace**: `<RemoteFs del nodo>/workspace/<job>`, montado con `reuseNode`.
-- **Cachés**: volúmenes en los `args` (`-v maven-cache:/cache/.m2`). Típicamente
+- **Cachés**: volúmenes en los `args` (`-v maven-cache-${EXECUTOR_NUMBER}:/cache/.m2`). Típicamente
   uno por executor para evitar colisiones.
 - **Selección**: la propia directiva `agent { docker { image } }` (una imagen por
   stage).

@@ -23,6 +23,10 @@ que el contenedor efímero pueda hablar con el Podman del **host**
 construir imágenes sin necesitar privilegios adicionales ni Podman
 anidado.
 
+> **Nota:** ese `:z` se elimino despues: el montaje correcto usa
+> `--security-opt label=disable` y **sin** `:z` (ver
+> [ADR-011](./0011-security-opt-label-disable-podman-socket.md)).
+
 ## Diagnóstico
 
 Instalar el paquete `podman` no activa automáticamente su socket

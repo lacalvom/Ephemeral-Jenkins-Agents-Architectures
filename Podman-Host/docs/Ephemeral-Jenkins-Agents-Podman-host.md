@@ -110,9 +110,9 @@ systemctl --user enable --now jenkins-agent.service
 4. **Caché de Nivel 2 (Aislamiento local por ejecutor):** Hay que utilizar volúmenes nombrados de Podman/Docker para las cachés de Maven o npm y montarlos con el sufijo del ejecutor cuando se seleccione el agente en el pipeline. Al definir en el pipeline el argumento de montaje del volumen, el motor de contenedores creará el volumen de forma automática e invisible la primera vez que se ejecute si no existe.
 5. **Gestión de permisos en Podman Rootless:** Es obligatorio agregar el parámetro `--userns=keep-id` en los argumentos de Podman en el pipeline. Si no se hace, Podman mapeará el usuario dentro del contenedor de forma incorrecta (ej. `UID 100999`) y fallarán los intentos de escritura sobre el Workspace (el código fuente montado desde el host) por errores de "Permiso denegado". Ejemplo: `--userns=keep-id -v maven-cache-${env.EXECUTOR_NUMBER}:/cache/.m2:z`.
 6. **Rutas absolutas independientes:** Los volúmenes de cachés se deben montar usando rutas absolutas fuera del directorio Home de ningún usuario y pasárselo a la herramienta para que lo encuentre. Por ejemplo: `mvn -Dmaven.repo.local=/cache/.m2/repository`.
-7. **Compatibilidad con SELinux:** Si el host utiliza SELinux, agregar siempre el sufijo `:z` al final de cada montaje de volúmenes. Si se omite, SELinux bloqueará silenciosamente el acceso del contenedor a la caché o al workspace, y se perderá demasiado tiempo depurándolo.
+7. **Compatibilidad con SELinux:** Si el host utiliza SELinux, agregar el sufijo `:z` al final de los montajes de volúmenes **normales** (cachés, artefactos). **Excepción importante:** el socket de Podman es "contenido de sistema" (lo gestiona la unidad `podman.socket`) y **no** debe relabelarse con `:z`; en su lugar se usa `--security-opt label=disable`. Relabelarlo con `:z` rompe el contexto SELinux que la política espera para permitir la conexión (ver ADR-011).
 8. **Montaje Simétrico (Docker-out-of-Docker) y Automático:** En la configuración del Nodo (Permanent Agent) en el Jenkins Controller, definir el directorio local como Remote root directory. Aclaración: Al configurar esto en la máquina base, el plugin Docker Pipeline lee la ruta del nodo y se encarga de realizar el montaje del workspace de forma **completamente automática e invisible** en cada contenedor efímero. No es necesario ni recomendable declarar volúmenes para el código fuente en el código del pipeline.
-9. **Delegación de Empaquetado (Montaje del Socket):** Jenkins lanza los agentes efímeros a través del CLI local, por lo que no necesita red para orquestarlos. **Excepción en el Pipeline:** Si una etapa específica necesita empaquetar y subir una nueva imagen de aplicación (ej. docker build / podman build), se debe montar el socket rootless del host explícitamente como un volumen dentro de esa etapa (`-v /run/user/1000/podman/podman.sock:/run/podman/podman.sock:z`).
+9. **Delegación de Empaquetado (Montaje del Socket):** Jenkins lanza los agentes efímeros a través del CLI local, por lo que no necesita red para orquestarlos. **Excepción en el Pipeline:** Si una etapa específica necesita empaquetar una imagen (ej. `podman build`), se debe montar el socket rootless del host dentro de esa etapa usando la ruta del UID del usuario `jenkins` (**1100**) y **sin `:z`**, añadiendo `--security-opt label=disable`. Ejemplo: `--security-opt label=disable -v /run/user/1100/podman/podman.sock:/run/podman/podman.sock` (ver ADR-011).
 
 ## Gestión Centralizada de Configuraciones con Config File Provider
 
@@ -150,6 +150,13 @@ Es imperativo comprender que el plugin de Docker de Jenkins no inyecta el proces
 
 Este ejemplo consolida todas las reglas arquitectónicas y el uso de configuraciones centralizadas en un único pipeline funcional.
 
+> La version **canonica y validada** de este pipeline vive en el repositorio, en
+> `Podman-Host/jenkins-config/jobs/reference-pipeline.groovy`. El ejemplo de
+> abajo es la referencia arquitectonica; en el laboratorio **no hay registry
+> interno**, por lo que el empaquetado solo etiqueta la imagen localmente
+> (`reference-backend:latest` / `reference-frontend:latest`) en lugar de hacer
+> `podman push`.
+
 ```groovy
 pipeline {
     // Asignamos el host RHEL 9 de forma global para todo el pipeline
@@ -182,7 +189,7 @@ pipeline {
             agent {
                 docker {
                     // Imagen oficial de Red Hat basada en RHEL 9 para Node.js 18
-                    image 'registry.access.redhat.com/ubi9/nodejs-18:latest'
+                    image 'registry.access.redhat.com/ubi9/nodejs-20:latest'
                     // Obliga al contenedor a reutilizar el workspace y ejecutor del agente global
                     reuseNode true
                     args "--userns=keep-id -v npm-cache-${env.EXECUTOR_NUMBER}:/cache/.npm:z"
@@ -211,7 +218,7 @@ pipeline {
                     // Obliga al contenedor a reutilizar el workspace y ejecutor del agente global
                     reuseNode true
                     // Montamos el socket de Podman del host para delegar la construcción
-                    args "--userns=keep-id -v /run/user/1000/podman/podman.sock:/run/podman/podman.sock:z"
+                    args "--userns=keep-id --security-opt label=disable -v /run/user/1100/podman/podman.sock:/run/podman/podman.sock"
                 }
             }
             steps {
@@ -231,7 +238,7 @@ pipeline {
                     image 'registry.access.redhat.com/ubi9/podman:latest'
                     // Obliga al contenedor a reutilizar el workspace y ejecutor del agente global
                     reuseNode true
-                    args "--userns=keep-id -v /run/user/1000/podman/podman.sock:/run/podman/podman.sock:z"
+                    args "--userns=keep-id --security-opt label=disable -v /run/user/1100/podman/podman.sock:/run/podman/podman.sock"
                 }
             }
             steps {

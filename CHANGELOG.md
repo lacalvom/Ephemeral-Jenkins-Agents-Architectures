@@ -9,6 +9,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Correcciones (no breaking)
 
+- **Guia de Podman-Host: montaje del socket de Podman corregido en el ejemplo.**
+  El ejemplo de "Pipeline Maestro de Referencia" usaba la ruta antigua
+  `/run/user/1000/...` con `:z`; se alinea con el pipeline real
+  (`/run/user/1100/...` y `--security-opt label=disable`, **sin** `:z`; ver
+  ADR-011). Tambien se alinea la imagen de Node del ejemplo (18 -> 20) y los
+  nombres de los volumenes de cache con el sufijo por ejecutor
+  (`maven-cache-${EXECUTOR_NUMBER}`). Nota anadida en ADR-010.
+
 - **`deploy.sh`: fix post-provisioning de `nsswitch.conf`** para que el DNS
   funcione en AlmaLinux 9 cloud image. Sin este fix, `dnf install` se
   cuelga indefinidamente al intentar descargar paquetes porque

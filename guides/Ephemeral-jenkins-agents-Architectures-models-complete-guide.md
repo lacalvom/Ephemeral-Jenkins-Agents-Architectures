@@ -88,7 +88,7 @@ stage('Backend') {
         docker {
             image 'registry.access.redhat.com/ubi9/openjdk-17:latest'
             reuseNode true
-            args '--userns=keep-id -v maven-cache:/cache/.m2:z'
+            args '--userns=keep-id -v maven-cache-${EXECUTOR_NUMBER}:/cache/.m2:z'
         }
     }
     steps { sh 'cd backend && mvn -B clean package' }
@@ -122,7 +122,7 @@ stage('Backend') {
 
 ### 4.5 Cachés
 
-- Se pasan en los `args` del pipeline: `-v maven-cache:/cache/.m2:z`.
+- Se pasan en los `args` del pipeline: `-v maven-cache-${EXECUTOR_NUMBER}:/cache/.m2:z`.
 - Lo típico es un volumen **por ejecutor** (`maven-cache-${EXECUTOR_NUMBER}`)
   para evitar colisiones con builds concurrentes.
 - Rutas fijas dentro del contenedor (`/cache/.m2`), sin depender de `$HOME`.
