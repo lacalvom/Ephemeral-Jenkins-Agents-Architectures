@@ -174,9 +174,9 @@ de diagnóstico manual.
 
 ## Referencias
 
-- `docs/adr/0005-podman-secrets-como-root.md`
-- `docs/adr/0013-integrar-secrets-tooling-en-site-yml.md`
-- `docs/adr/0014-entropia-vms-gpg.md`
+- `Podman-Host/docs/adr/0005-podman-secrets-como-root.md`
+- `Podman-Host/docs/adr/0013-integrar-secrets-tooling-en-site-yml.md`
+- `Podman-Host/docs/adr/0014-entropia-vms-gpg.md`
 - https://github.com/containers/common/blob/main/pkg/secrets/shelldriver/shelldriver.go
 - https://github.com/getsops/sops
 - https://github.com/FiloSottile/age

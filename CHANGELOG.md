@@ -14,7 +14,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   cuelga indefinidamente al intentar descargar paquetes porque
   `getent hosts` no resuelve nombres externos (la base de datos `hosts`
   en `nsswitch.conf` viene con `files` antes que `dns` por defecto).
-  Ver [ADR-007](./docs/adr/0007-nsswitch-conf-dns-fix.md) para el
+  Ver [ADR-007](./Podman-Host/docs/adr/0007-nsswitch-conf-dns-fix.md) para el
   diagnostico completo. El fix es idempotente y se aplica automaticamente
   a cada VM tras el polling SSH, antes de que Ansible intente instalar
   paquetes.
@@ -25,7 +25,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   marca como completado en disco, asi que reaparece en cada reinicio.
   El script ahora: (1) habilita `slaveAgentPort` en 50000, (2) crea
   manualmente `jenkins.install.InstallState` con contenido `2.0`, y
-  (3) crea el nodo. Ver [ADR-008](./docs/adr/0008-jnlp-port-and-installstate-fix.md)
+  (3) crea el nodo. Ver [ADR-008](./Podman-Host/docs/adr/0008-jnlp-port-and-installstate-fix.md)
   para el diagnostico completo.
 - **`reference-pipeline.groovy` fallaba en el primer build real con
   `No settings.xml file with fileId 'maven-settings-modern' found`.**
@@ -37,7 +37,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   Provider. Ademas se sustituye el mirror ficticio
   `artifactory.mi-empresa.local` (heredado de la guia original, no
   resuelve) por Maven Central y el registry publico de npm. Ver
-  [ADR-009](./docs/adr/0009-reference-app-sin-scm.md).
+  [ADR-009](./Podman-Host/docs/adr/0009-reference-app-sin-scm.md).
 - **Los stages de empaquetado del pipeline (`Empaquetar Imagen Backend/Frontend`)
   fallaban con `Error: statfs /run/user/1100/podman/podman.sock: no
   such file or directory`.** El rol `podman_host` habilitaba el linger
@@ -49,7 +49,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   habilita y arranca `podman.socket` como servicio `--user`, mas una
   verificacion explicita (`stat` + `fail`) para que un fallo similar se
   detecte durante el `ansible-playbook`, no dentro de un build de
-  Jenkins. Ver [ADR-010](./docs/adr/0010-habilitar-podman-socket.md).
+  Jenkins. Ver [ADR-010](./Podman-Host/docs/adr/0010-habilitar-podman-socket.md).
 - **Con el socket ya presente, los mismos stages fallaban con
   `permission denied` al conectar, a pesar de que los permisos POSIX
   del socket eran correctos.** Causa: el volumen se montaba con el
@@ -61,14 +61,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   `--security-opt label=disable` en los dos stages de empaquetado,
   siguiendo la recomendacion oficial de la documentacion de
   troubleshooting de Podman para "contenido de sistema". Ver
-  [ADR-011](./docs/adr/0011-security-opt-label-disable-podman-socket.md).
+  [ADR-011](./Podman-Host/docs/adr/0011-security-opt-label-disable-podman-socket.md).
 - **`podman compose -f podman-compose.yml up -d` fallaba en el
   podman-host con `looking up compose provider failed`.** AlmaLinux 9
   no trae instalado ningun proveedor de Compose (`docker-compose`,
   plugin `docker compose` v2, ni `podman-compose`) junto con el
   paquete `podman`. Se anade la instalacion de `podman-compose` desde
   EPEL 9 al rol `podman_host`. Ver
-  [ADR-012](./docs/adr/0012-instalar-podman-compose.md).
+  [ADR-012](./Podman-Host/docs/adr/0012-instalar-podman-compose.md).
 - **`podman_secrets_tooling` nunca creaba ningun secret al pasar
   `enabled_drivers` como lista YAML nativa** (solo funcionaba con el
   formato antiguo `-e "enabled_drivers=[file]"` como string). La
@@ -81,7 +81,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   (las tareas corren como root, no como jenkins, ver ADR-005), lo que
   regeneraba claves GPG/age nuevas en cada ejecucion. Ambos bugs se
   corrigen como parte de la integracion en `site.yml`. Ver
-  [ADR-013](./docs/adr/0013-integrar-secrets-tooling-en-site-yml.md).
+  [ADR-013](./Podman-Host/docs/adr/0013-integrar-secrets-tooling-en-site-yml.md).
 - **El playbook se quedaba colgado indefinidamente, sin ningun error,
   en `podman_secrets_tooling | DRIVER PASS | Generar clave GPG sin
   passphrase`.** Causa: las VMs se crean con `virt-install` sin
@@ -94,7 +94,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   depender de hardware), y (3) un timeout de 120s con un mensaje de
   fallo explicito si aun asi no hay suficiente entropia, para que el
   playbook nunca vuelva a colgarse en silencio. Ver
-  [ADR-014](./docs/adr/0014-entropia-vms-gpg.md).
+  [ADR-014](./Podman-Host/docs/adr/0014-entropia-vms-gpg.md).
 - **El driver `pass` de Podman Secrets fallaba con "No public key"
   (documentado antes como "requiere TTY interactivo", diagnostico
   incorrecto).** Causa real: la extraccion del fingerprint GPG usaba
@@ -104,7 +104,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   guardando un ID invalido en el almacen `pass`. Se corrige extrayendo
   el campo correcto por indice (`split(':')[9]`), validado end-to-end
   (cifrar, registrar el secret, usarlo en un contenedor real). Ver
-  [ADR-015](./docs/adr/0015-fix-crypta-y-pass-driver.md).
+  [ADR-015](./Podman-Host/docs/adr/0015-fix-crypta-y-pass-driver.md).
 - **`crypta` (driver `shell`) se elimina: todas sus versiones
   publicadas requieren glibc 2.39+, incompatible con AlmaLinux 9.**
   Ademas, la sintaxis `--opt path=...,arg1=...,arg2=...` de la guia
@@ -115,7 +115,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   directamente a `sops`+`age` (sin `crypta`), registrado con el modulo
   `containers.podman.podman_secret` (`driver_opts` + `skip_existing`).
   Validado end-to-end de la misma forma. Ver
-  [ADR-015](./docs/adr/0015-fix-crypta-y-pass-driver.md).
+  [ADR-015](./Podman-Host/docs/adr/0015-fix-crypta-y-pass-driver.md).
 - **Los mensajes multi-linea de `debug:` (avisos de `podman_secrets_tooling`)
   se mostraban con `\n` literales en vez de saltos de linea reales.**
   Causa: el callback `default` de Ansible usa formato JSON por defecto
@@ -146,7 +146,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   `failed_when: false` por `ignore_errors: true`, que conserva
   `failed: true` en el resultado y hace que el aviso SI se muestre si
   algo va mal. Ver el addendum de
-  [ADR-015](./docs/adr/0015-fix-crypta-y-pass-driver.md).
+  [ADR-015](./Podman-Host/docs/adr/0015-fix-crypta-y-pass-driver.md).
 
 ### Cambiado
 
@@ -162,6 +162,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - `.gitignore` adaptado a las nuevas rutas (`*/aux-files/*`, `*/.env`,
     `*/ansible/group_vars/all/vault.yml`).
 
+- **Reorganizacion de la documentacion por laboratorio.**
+  - Los **ADRs** pasan a `Podman-Host/docs/adr/` (aplican a ese laboratorio).
+  - La **guia de cada modelo** pasa a `<lab>/docs/guides/`
+    (`Podman-Host/docs/guides/2_...`, `Podman-Cloud/docs/guides/3_...`,
+    `Jenkins-Kubernetes/docs/guides/4_...`).
+  - En la raiz, `docs/` se renombra a **`guides/`** y contiene solo la
+    **comparativa** (`1_...`) y el **documento unificado** (`5_...`).
+
 - **`podman_secrets_tooling` deja de ser un playbook opcional
   (`ansible/secrets-tooling.yml` + grupo `[podman_secret_hosts]` en
   `hosts.ini`).** Ahora es la Fase 5 de `ansible/site.yml`, se aplica
@@ -171,7 +179,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   final del provisioning de las VMs, asi que `./deploy.sh` deja el
   laboratorio completo (Jenkins + Podman + Secrets) funcional sin
   ningun paso manual adicional. Ver
-  [ADR-013](./docs/adr/0013-integrar-secrets-tooling-en-site-yml.md).
+  [ADR-013](./Podman-Host/docs/adr/0013-integrar-secrets-tooling-en-site-yml.md).
 - **Portabilidad del repositorio (para publicarlo): se eliminan todas
   las referencias al usuario/rutas de una persona concreta.**
   - La documentacion (`README.md`, ADRs) usa `<nombre-usuario>` en lugar

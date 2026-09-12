@@ -107,5 +107,5 @@ ya validado: el agente se conecta correctamente).
 
 ## Referencias
 
-- `docs/adr/0009-reference-app-sin-scm.md`
+- `Podman-Host/docs/adr/0009-reference-app-sin-scm.md`
 - https://docs.podman.io/en/latest/markdown/podman-system-service.1.html

@@ -118,6 +118,6 @@ que consume `podman-compose.yml` para no depender del número de build.
 
 ## Referencias
 
-- `docs/adr/0003-init-groovy-vs-jcasc.md`
+- `Podman-Host/docs/adr/0003-init-groovy-vs-jcasc.md`
 - `jenkins-config/samples/reference-app/README.md`
 - https://github.com/jenkinsci/config-file-provider-plugin

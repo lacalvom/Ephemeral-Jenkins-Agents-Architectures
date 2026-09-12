@@ -601,14 +601,14 @@ Diferencias con el pipeline del Modelo A:
 - `jenkins/inbound-agent`: https://hub.docker.com/r/jenkins/inbound-agent
 - JCasC (ejemplo Docker):
   https://github.com/jenkinsci/configuration-as-code-plugin/tree/master/demos/docker
-- Guía principal del laboratorio:
-  `2_Ephemeral-Jenkins-Agents-Podman-host.md`
-- ADRs relacionados del repo `Ephemeral-Jenkins-Agents-Architectures`:
-  [ADR-005](../adr/0005-podman-secrets-como-root.md) (secrets root),
-  [ADR-009](../adr/0009-reference-app-sin-scm.md) (app de referencia sin SCM),
-  [ADR-010](../adr/0010-habilitar-podman-socket.md) (podman.socket),
-  [ADR-011](../adr/0011-security-opt-label-disable-podman-socket.md) (`--security-opt label=disable`).
+- Guia principal del laboratorio Podman-Host:
+  [`2_Ephemeral-Jenkins-Agents-Podman-host.md`](../../../Podman-Host/docs/guides/2_Ephemeral-Jenkins-Agents-Podman-host.md)
+- ADRs relacionados (del lab Podman-Host):
+  [ADR-005](../../../Podman-Host/docs/adr/0005-podman-secrets-como-root.md) (secrets root),
+  [ADR-009](../../../Podman-Host/docs/adr/0009-reference-app-sin-scm.md) (app de referencia sin SCM),
+  [ADR-010](../../../Podman-Host/docs/adr/0010-habilitar-podman-socket.md) (podman.socket),
+  [ADR-011](../../../Podman-Host/docs/adr/0011-security-opt-label-disable-podman-socket.md) (`--security-opt label=disable`).
 
 ---
 
-*Licencia: [CC BY 4.0](./LICENSE). © 2026 Cloudsdoers.*
+*Licencia: [CC BY 4.0](../../../guides/LICENSE). © 2026 Cloudsdoers.*

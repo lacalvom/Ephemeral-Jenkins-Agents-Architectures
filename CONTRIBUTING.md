@@ -16,9 +16,11 @@ resume como esta organizado el proyecto y como proponer cambios.
     antiguos (JDK 6/7/8, Node 8/10/12).
 - `Podman-Cloud/` y `Jenkins-Kubernetes/` — laboratorios de los otros dos
   modelos (en preparacion; ver su `README.md`).
-- `docs/adr/` — Architecture Decision Records. **Todo cambio tecnico
-  relevante debe ir acompanado de su ADR.**
-- `docs/guides/` — guias de los tres modelos de agentes efimeros.
+- `docs/adr/` (dentro de cada lab, p. ej. `Podman-Host/docs/adr/`) —
+  Architecture Decision Records. **Todo cambio tecnico relevante debe ir
+  acompanado de su ADR.**
+- `guides/` — guias generales (comparativa y documento unificado). Las guias
+  por modelo viven en `<lab>/docs/guides/`.
 
 ## Flujo de trabajo
 

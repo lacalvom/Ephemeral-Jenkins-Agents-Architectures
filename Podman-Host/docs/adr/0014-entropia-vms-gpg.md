@@ -106,6 +106,6 @@ siempre.
 
 ## Referencias
 
-- `docs/adr/0013-integrar-secrets-tooling-en-site-yml.md`
+- `Podman-Host/docs/adr/0013-integrar-secrets-tooling-en-site-yml.md`
 - https://wiki.qemu.org/Features/VirtIORNG
 - https://www.gnupg.org/documentation/manuals/gnupg/Unattended-GPG-key-generation.html

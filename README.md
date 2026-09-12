@@ -9,13 +9,13 @@ es común y vive en `docs/`.
 
 | Modelo | Carpeta (lab) | Guía | Plugin | Entorno |
 |---|---|---|---|---|
-| **Podman-Host** | [`Podman-Host/`](./Podman-Host/) | [guía](./docs/guides/2_Ephemeral-Jenkins-Agents-Podman-host.md) | `docker-workflow` (`agent { docker { ... } }`) | contenedor por stage |
-| **Podman-Cloud** | [`Podman-Cloud/`](./Podman-Cloud/) | [guía](./docs/guides/3_Ephemeral-Jenkins-Agents-Podman-Cloud.md) | `docker-plugin` (Cloud + Docker Agent Templates) | contenedor-agente por build |
-| **Jenkins-Kubernetes** | [`Jenkins-Kubernetes/`](./Jenkins-Kubernetes/) | [guía](./docs/guides/4_Ephemeral-Jenkins-Agents-Kubernetes.md) | `kubernetes-plugin` | Pod-agente por build |
+| **Podman-Host** | [`Podman-Host/`](./Podman-Host/) | [guía](./Podman-Host/docs/guides/2_Ephemeral-Jenkins-Agents-Podman-host.md) | `docker-workflow` (`agent { docker { ... } }`) | contenedor por stage |
+| **Podman-Cloud** | [`Podman-Cloud/`](./Podman-Cloud/) | [guía](./Podman-Cloud/docs/guides/3_Ephemeral-Jenkins-Agents-Podman-Cloud.md) | `docker-plugin` (Cloud + Docker Agent Templates) | contenedor-agente por build |
+| **Jenkins-Kubernetes** | [`Jenkins-Kubernetes/`](./Jenkins-Kubernetes/) | [guía](./Jenkins-Kubernetes/docs/guides/4_Ephemeral-Jenkins-Agents-Kubernetes.md) | `kubernetes-plugin` | Pod-agente por build |
 
-**Empieza por la [comparativa de los tres modelos](./docs/guides/1_Ephemeral-jenkins-Agents-Architectures-Compartive.md)**
+**Empieza por la [comparativa de los tres modelos](./guides/1_Ephemeral-jenkins-Agents-Architectures-Compartive.md)**
 y, si prefieres un único documento, el
-[documento unificado](./docs/guides/5_Ephemeral-jenkins-agents-Architectures-models.md).
+[documento unificado](./guides/5_Ephemeral-jenkins-agents-Architectures-models.md).
 
 ## Qué es un agente efímero
 
@@ -34,25 +34,29 @@ Ephemeral-Jenkins-Agents-Architectures/
 ├── CONTRIBUTING.md               # Guia de contribucion
 ├── LICENSE                       # Licencia del codigo (Apache 2.0)
 ├── NOTICE                        # Aviso de atribucion (Apache 2.0)
-├── docs/
-│   ├── adr/                      # Architecture Decision Records (comunes)
-│   └── guides/                   # Guias de los 3 modelos (comunes)
+├── guides/                       # Guias GENERALES
+│   ├── 1_...Compartive.md        #   Comparativa de los tres modelos
+│   ├── 5_...models.md            #   Documento unificado
+│   └── LICENSE                   #   Licencia CC BY 4.0 de las guias
 ├── Podman-Host/                  # Lab del modelo Podman-Host (completo)
 │   ├── README.md
-│   ├── deploy.sh / destroy.sh
-│   ├── .env.example
-│   ├── ansible/
-│   ├── jenkins-config/
-│   └── legacy-images/
+│   ├── deploy.sh / destroy.sh / .env.example
+│   ├── ansible/  jenkins-config/  legacy-images/
+│   └── docs/
+│       ├── adr/                  #   ADRs del lab Podman-Host
+│       └── guides/               #   2_... (guia del modelo Podman-Host)
 ├── Podman-Cloud/                 # Lab del modelo Podman-Cloud (en preparacion)
-│   └── README.md
+│   ├── README.md
+│   └── docs/guides/              #   3_... (guia del modelo Podman-Cloud)
 └── Jenkins-Kubernetes/           # Lab del modelo Jenkins-Kubernetes (en preparacion)
-    └── README.md
+    ├── README.md
+    └── docs/guides/              #   4_... (guia del modelo Jenkins-Kubernetes)
 ```
 
 Cada laboratorio de modelo es **autocontenido**: incluye su provisioning
 (`deploy.sh`/`destroy.sh`), su playbook de Ansible, su configuración de Jenkins
-y sus imágenes. Solo comparten la documentación (`docs/`) y las licencias.
+y sus imágenes. Solo comparten las **guías generales** (`guides/`) y las
+licencias.
 
 ## Estado de los laboratorios
 
@@ -64,15 +68,17 @@ y sus imágenes. Solo comparten la documentación (`docs/`) y las licencias.
 
 ## Documentacion
 
-- [Guias de arquitecturas](./docs/guides/) — comparativa + un documento por
-  modelo + documento unificado (con orden de lectura `1_`..`5_`).
-- [ADRs](./docs/adr/README.md) — decisiones tecnicas del laboratorio Podman-Host.
+- [Guias generales](./guides/) — comparativa de los tres modelos y documento
+  unificado.
+- Guias por modelo: `Podman-Host/docs/guides/`, `Podman-Cloud/docs/guides/` y
+  `Jenkins-Kubernetes/docs/guides/`.
+- [ADRs](./Podman-Host/docs/adr/README.md) — decisiones tecnicas del laboratorio Podman-Host.
 
 ## Licencia
 
 - **Codigo** (scripts, roles de Ansible, configuracion): [Apache 2.0](./LICENSE),
   con el aviso de atribucion en [NOTICE](./NOTICE).
-- **Documentacion y guias** (`docs/`): [CC BY 4.0](./docs/guides/LICENSE).
+- **Documentacion y guias** (`guides/` y `<lab>/docs/`): [CC BY 4.0](./guides/LICENSE).
 - **Marcas:** "Cloudsdoers" y su logotipo son marcas de Cloudsdoers
   (https://cloudsdoers.com). Las licencias anteriores no conceden derechos
   sobre ellas.

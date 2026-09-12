@@ -97,6 +97,6 @@ paquete oficial en los repos de RHEL/AlmaLinux) porque:
 
 ## Referencias
 
-- `docs/adr/0009-reference-app-sin-scm.md`
+- `Podman-Host/docs/adr/0009-reference-app-sin-scm.md`
 - https://github.com/containers/podman-compose
 - https://packages.fedoraproject.org/pkgs/podman-compose/podman-compose/

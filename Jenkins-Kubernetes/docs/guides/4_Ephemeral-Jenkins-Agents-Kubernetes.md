@@ -674,4 +674,4 @@ partida más rápido y realista.
 
 ---
 
-*Licencia: [CC BY 4.0](./LICENSE). © 2026 Cloudsdoers.*
+*Licencia: [CC BY 4.0](../../../guides/LICENSE). © 2026 Cloudsdoers.*

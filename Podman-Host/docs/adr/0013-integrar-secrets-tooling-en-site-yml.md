@@ -138,5 +138,5 @@ real; con la integración en `site.yml` (que sí se ejecuta en cada
 
 ## Referencias
 
-- `docs/adr/0005-podman-secrets-como-root.md`
+- `Podman-Host/docs/adr/0005-podman-secrets-como-root.md`
 - `ansible/roles/podman_secrets_tooling/`

@@ -2,7 +2,7 @@
 
 > **Estado: en preparacion.** Este directorio contendrá el laboratorio
 > reproducible del modelo **Jenkins-Kubernetes**. La guía ya está escrita
-> ([`docs/guides/4_Ephemeral-Jenkins-Agents-Kubernetes.md`](../docs/guides/4_Ephemeral-Jenkins-Agents-Kubernetes.md));
+> ([`docs/guides/4_Ephemeral-Jenkins-Agents-Kubernetes.md`](docs/guides/4_Ephemeral-Jenkins-Agents-Kubernetes.md));
 > el codigo del lab se implementará después.
 
 ## El modelo
@@ -14,7 +14,7 @@ para el agente (`jnlp`) y varios de herramientas que se usan con
 `container('nombre')`. No hay socket de Docker: las imágenes se construyen con
 **Kaniko/Buildah**.
 
-Referencia: [guía del modelo Jenkins-Kubernetes](../docs/guides/4_Ephemeral-Jenkins-Agents-Kubernetes.md).
+Referencia: [guía del modelo Jenkins-Kubernetes](docs/guides/4_Ephemeral-Jenkins-Agents-Kubernetes.md).
 
 ## Roadmap del laboratorio
 

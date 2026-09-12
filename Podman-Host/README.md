@@ -4,7 +4,7 @@
 > [`Ephemeral-Jenkins-Agents-Architectures`](../README.md): agentes efímeros
 > con `docker-workflow` (`agent { docker { ... } }`), un contenedor por stage,
 > sobre un Podman Host. Ver la
-> [guía del modelo](../docs/guides/2_Ephemeral-Jenkins-Agents-Podman-host.md).
+> [guía del modelo](docs/guides/2_Ephemeral-Jenkins-Agents-Podman-host.md).
 
 Home-lab reproducible que despliega una arquitectura completa de **Jenkins
 Controller + Podman Host** sobre dos VMs AlmaLinux 9, con agentes Jenkins
@@ -180,11 +180,15 @@ Podman-Host/
 │   ├── groovy/                            # Scripts Groovy para init.groovy.d/ (01..04)
 │   ├── jobs/reference-pipeline.groovy     # Definicion del pipeline de ejemplo
 │   └── samples/reference-app/             # App de ejemplo (Java 17 + Angular 20)
+├── docs/
+│   ├── adr/                               # ADRs del lab Podman-Host
+│   └── guides/                            # Guia del modelo Podman-Host (2_...)
 └── legacy-images/                         # Imagenes de agentes con toolchains antiguos
 ```
 
-> La **documentacion comun** (ADRs y guias de los 3 modelos) vive en la raiz
-> del repo: [`../docs/adr/`](../docs/adr/) y [`../docs/guides/`](../docs/guides/).
+> Los **ADRs del modelo Podman-Host** estan en [`docs/adr/`](docs/adr/) y su
+> guia en [`docs/guides/`](docs/guides/). Las guias generales (comparativa y
+> documento unificado) y los demas modelos estan en la raiz del repositorio.
 
 ---
 
@@ -292,7 +296,7 @@ ansible-playbook site.yml
 2. **`Fase 2 · jenkins_controller`** — Instala Java 21, repo de Jenkins LTS, RPM `jenkins-2.568.3`, descarga el Plugin Installation Manager Tool, instala los plugins declarados en `jenkins-config/plugins.yaml` con versiones fijadas, copia los scripts Groovy de provision a `/var/lib/jenkins/init.groovy.d/`, configura el drop-in de systemd con JAVA_OPTS, configura la Jenkins URL y arranca Jenkins. Espera a que responda HTTP 200/403. Verifica que el nodo y el job se crearon.
 3. **`Fase 3 · podman_host`** — Instala `podman` + `podman-docker` + `podman-compose` (EPEL) + Java 21 + dependencias rootless, habilita `loginctl enable-linger jenkins`, habilita y arranca el socket rootless `podman.socket`, crea la unidad `jenkins-agent.service` en `~/.config/systemd/user/`, copia la app de ejemplo (`reference-app/`) al workspace del job.
 4. **`Fase 4 · agent_registration`** — Lee el secret real del nodo desde la API REST de Jenkins, lo escribe en `/datos/jenkins/agent/secret-file` del podman-host, descarga `agent.jar`, arranca `jenkins-agent.service`. Espera a que el agente este `offline: false` en Jenkins.
-5. **`Fase 5 · podman_secrets_tooling`** — Instala `age`, `sops`, `gnupg2` y `pass`; configura los tres drivers de Podman Secrets (`file`, `pass`, `shell` con un script propio basado en `sops`+`age`) y crea un secret de ejemplo con cada uno, totalmente automatico. Ver [ADR-013](../docs/adr/0013-integrar-secrets-tooling-en-site-yml.md), [ADR-014](../docs/adr/0014-entropia-vms-gpg.md) y [ADR-015](../docs/adr/0015-fix-crypta-y-pass-driver.md).
+5. **`Fase 5 · podman_secrets_tooling`** — Instala `age`, `sops`, `gnupg2` y `pass`; configura los tres drivers de Podman Secrets (`file`, `pass`, `shell` con un script propio basado en `sops`+`age`) y crea un secret de ejemplo con cada uno, totalmente automatico. Ver [ADR-013](docs/adr/0013-integrar-secrets-tooling-en-site-yml.md), [ADR-014](docs/adr/0014-entropia-vms-gpg.md) y [ADR-015](docs/adr/0015-fix-crypta-y-pass-driver.md).
 
 **Tiempo total esperado:** 10-15 minutos en una maquina moderna.
 
@@ -385,7 +389,7 @@ La Fase 5 del playbook (`podman_secrets_tooling`) deja configurados
 **los tres drivers** de Podman Secrets, cada uno con un secret de
 ejemplo ya creado (`api_token_prod_file`, `api_token_prod_pass`,
 `api_token_prod_shell`). Todas las operaciones se hacen como **root**
-en el podman-host (ver [ADR-005](../docs/adr/0005-podman-secrets-como-root.md)),
+en el podman-host (ver [ADR-005](docs/adr/0005-podman-secrets-como-root.md)),
 asi que los comandos de esta seccion se ejecutan con `sudo` (o ya
 como root):
 
@@ -452,7 +456,7 @@ En este laboratorio, ese script es
 **`/usr/local/bin/podman-secret-sops-driver.sh`** (desplegado por el
 rol desde `ansible/roles/podman_secrets_tooling/templates/sops-shell-driver.sh.j2`).
 Sustituye a `crypta` (incompatible con AlmaLinux 9, ver
-[ADR-015](../docs/adr/0015-fix-crypta-y-pass-driver.md)) llamando
+[ADR-015](docs/adr/0015-fix-crypta-y-pass-driver.md)) llamando
 directamente a `sops` + `age`. El script implementa las 4 acciones
 que exige Podman (`lookup`, `store`, `list`, `delete`); no se invoca
 a mano normalmente, **Podman lo invoca por ti** al crear/leer/borrar
@@ -685,7 +689,7 @@ ID                         NAME                  DRIVER      CREATED         UPD
 ```
 
 Los tres deberian aparecer siempre: los drivers `pass` y `shell` estan
-completamente automatizados (ver [ADR-015](../docs/adr/0015-fix-crypta-y-pass-driver.md)),
+completamente automatizados (ver [ADR-015](docs/adr/0015-fix-crypta-y-pass-driver.md)),
 sin pasos manuales pendientes.
 
 ---
@@ -792,7 +796,7 @@ jenkins_version: "2.999.0"   # LTS que se quiera usar
 curl -sL https://updates.jenkins.io/dynamic-stable-2.999.0/update-center.json | python3 -c "..."
 ```
 
-Ver [ADR-006](../docs/adr/0006-plugin-manager-tool.md) para detalles.
+Ver [ADR-006](docs/adr/0006-plugin-manager-tool.md) para detalles.
 
 ### Anadir plugins extra
 
@@ -823,7 +827,7 @@ cambiar esto, edita el bloque `vars:` de la Fase 5 en `ansible/site.yml`:
     - podman_secrets_tooling
 ```
 
-Ver [ADR-013](../docs/adr/0013-integrar-secrets-tooling-en-site-yml.md) para el porque de esta integracion y [ADR-005](../docs/adr/0005-podman-secrets-como-root.md) para las limitaciones de cada driver.
+Ver [ADR-013](docs/adr/0013-integrar-secrets-tooling-en-site-yml.md) para el porque de esta integracion y [ADR-005](docs/adr/0005-podman-secrets-como-root.md) para las limitaciones de cada driver.
 
 ---
 
@@ -892,9 +896,9 @@ sleep 30 && ansible-playbook -i hosts.ini site.yml
 
 ## Limitaciones conocidas
 
-1. **JCasC no funciona** con Jenkins 2.568.3 por un bug de orden de carga entre plugins. Usamos scripts Groovy nativos en `init.groovy.d/` como alternativa (Plan B). Ver [ADR-003](../docs/adr/0003-init-groovy-vs-jcasc.md).
+1. **JCasC no funciona** con Jenkins 2.568.3 por un bug de orden de carga entre plugins. Usamos scripts Groovy nativos en `init.groovy.d/` como alternativa (Plan B). Ver [ADR-003](docs/adr/0003-init-groovy-vs-jcasc.md).
 
-2. **El podman-host expone los secrets a nivel de sistema**, no rootless. Cualquier proceso del host puede leerlos. Aceptable en este laboratorio monousuario. En produccion, usar rootless con cgroups delegadas. Ver [ADR-005](../docs/adr/0005-podman-secrets-como-root.md).
+2. **El podman-host expone los secrets a nivel de sistema**, no rootless. Cualquier proceso del host puede leerlos. Aceptable en este laboratorio monousuario. En produccion, usar rootless con cgroups delegadas. Ver [ADR-005](docs/adr/0005-podman-secrets-como-root.md).
 
 3. **El repositorio NO crea el kube cluster ni nada de Kubernetes**. Es solo Jenkins + Podman. La guia original menciona Kubernetes como destino final de los pipelines (empaquetado de imagenes), pero eso queda fuera del alcance de este laboratorio.
 
@@ -922,7 +926,7 @@ sleep 30 && ansible-playbook -i hosts.ini site.yml
 ## Decisiones arquitectonicas (ADRs)
 
 Las decisiones tecnicas importantes estan documentadas como ADRs en
-[`docs/adr/`](../docs/adr/README.md):
+[`docs/adr/`](docs/adr/README.md):
 
 - **ADR-001:** Elegir AlmaLinux 9 como distro base
 - **ADR-002:** DHCP estatico en libvirt vs network-config en cloud-init
@@ -940,13 +944,13 @@ Las decisiones tecnicas importantes estan documentadas como ADRs en
 - **ADR-014:** Entropia suficiente en las VMs para operaciones criptograficas (GPG)
 - **ADR-015:** Reemplazar `crypta` por `sops`+`age` directo, y corregir el driver `pass` (bug real, no TTY)
 
-**Guias de arquitecturas de agentes efimeros** (`docs/guides/`), en orden de lectura recomendado:
+**Guias de arquitecturas de agentes efimeros** (orden de lectura recomendado):
 
-1. [Comparativa de los tres modelos](../docs/guides/1_Ephemeral-jenkins-Agents-Architectures-Compartive.md) — panorama de Podman-Host, Podman-Cloud y Jenkins-Kubernetes.
-2. [Podman-Host](../docs/guides/2_Ephemeral-Jenkins-Agents-Podman-host.md) — agentes efimeros con `docker-workflow` (`agent { docker { ... } }`), un contenedor por stage.
-3. [Podman-Cloud](../docs/guides/3_Ephemeral-Jenkins-Agents-Podman-Cloud.md) — Cloud con `docker-plugin` y Docker Agent Templates.
-4. [Jenkins-Kubernetes](../docs/guides/4_Ephemeral-Jenkins-Agents-Kubernetes.md) — agentes efimeros sobre Kubernetes (controller dentro o fuera del cluster).
-5. [Documento unificado](../docs/guides/5_Ephemeral-jenkins-agents-Architectures-models.md) — todo en uno, como referencia.
+1. [Comparativa de los tres modelos](../guides/1_Ephemeral-jenkins-Agents-Architectures-Compartive.md) — panorama de Podman-Host, Podman-Cloud y Jenkins-Kubernetes.
+2. [Podman-Host](docs/guides/2_Ephemeral-Jenkins-Agents-Podman-host.md) — agentes efimeros con `docker-workflow` (`agent { docker { ... } }`), un contenedor por stage.
+3. [Podman-Cloud](../Podman-Cloud/docs/guides/3_Ephemeral-Jenkins-Agents-Podman-Cloud.md) — Cloud con `docker-plugin` y Docker Agent Templates.
+4. [Jenkins-Kubernetes](../Jenkins-Kubernetes/docs/guides/4_Ephemeral-Jenkins-Agents-Kubernetes.md) — agentes efimeros sobre Kubernetes (controller dentro o fuera del cluster).
+5. [Documento unificado](../guides/5_Ephemeral-jenkins-agents-Architectures-models.md) — todo en uno, como referencia.
 
 ---
 
@@ -984,8 +988,8 @@ Las decisiones tecnicas importantes estan documentadas como ADRs en
   [Apache 2.0](../LICENSE), con el aviso de atribucion en
   [NOTICE](../NOTICE).
 - **Guias de arquitecturas de agentes efimeros**
-  (`docs/guides/`): licencia
-  [CC BY 4.0](../docs/guides/LICENSE)
+  (`guides/` y `docs/guides/`): licencia
+  [CC BY 4.0](../guides/LICENSE)
   (Creative Commons Atribucion 4.0 Internacional).
 - **Marcas:** "Cloudsdoers" y su logotipo son marcas de Cloudsdoers
   (https://cloudsdoers.com). Ninguna de las licencias anteriores concede

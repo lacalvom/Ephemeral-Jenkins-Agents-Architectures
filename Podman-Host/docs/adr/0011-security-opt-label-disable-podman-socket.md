@@ -134,5 +134,5 @@ los que `:z`/`:Z` es el uso correcto y documentado.
 
 ## Referencias
 
-- `docs/adr/0010-habilitar-podman-socket.md`
+- `Podman-Host/docs/adr/0010-habilitar-podman-socket.md`
 - https://github.com/containers/podman/blob/main/troubleshooting.md (sección "Can't use volume mount, get permission denied")
