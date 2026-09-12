@@ -671,3 +671,7 @@ partida más rápido y realista.
   `3_Ephemeral-Jenkins-Agents-Podman-Cloud.md`,
   `1_Ephemeral-jenkins-Agents-Architectures-Compartive.md`,
   `5_Ephemeral-jenkins-agents-Architectures-models.md`.
+
+---
+
+*Licencia: [CC BY 4.0](./LICENSE). © 2026 jenkins-podman-lab contributors.*

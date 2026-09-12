@@ -608,3 +608,7 @@ Diferencias con el pipeline del Modelo A:
   [ADR-009](../adr/0009-reference-app-sin-scm.md) (app de referencia sin SCM),
   [ADR-010](../adr/0010-habilitar-podman-socket.md) (podman.socket),
   [ADR-011](../adr/0011-security-opt-label-disable-podman-socket.md) (`--security-opt label=disable`).
+
+---
+
+*Licencia: [CC BY 4.0](./LICENSE). © 2026 jenkins-podman-lab contributors.*

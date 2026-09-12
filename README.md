@@ -210,6 +210,7 @@ jenkins-podman-lab/
     │   └── 0015-fix-crypta-y-pass-driver.md
     └── Ephemeral-Jenkins-Agents-Architectures/   # Guias de arquitecturas de agentes efimeros
         ├── README.md                             #   Indice y orden de lectura
+        ├── LICENSE                               #   Licencia CC BY 4.0 de las guias
         ├── 1_Ephemeral-jenkins-Agents-Architectures-Compartive.md
         ├── 2_Ephemeral-Jenkins-Agents-Podman-host.md
         ├── 3_Ephemeral-Jenkins-Agents-Podman-Cloud.md
@@ -1005,3 +1006,14 @@ Las decisiones tecnicas importantes estan documentadas como ADRs en
 **Version:** 0.1.0
 **Fecha:** 2026-09-09
 **Cambios:** ver [CHANGELOG.md](./CHANGELOG.md)
+
+---
+
+## Licencia
+
+- **Codigo del laboratorio** (scripts `deploy.sh`/`destroy.sh`, roles de
+  Ansible, configuracion de Jenkins): licencia [MIT](./LICENSE).
+- **Guias de arquitecturas de agentes efimeros**
+  (`docs/Ephemeral-Jenkins-Agents-Architectures/`): licencia
+  [CC BY 4.0](./docs/Ephemeral-Jenkins-Agents-Architectures/LICENSE)
+  (Creative Commons Atribucion 4.0 Internacional).

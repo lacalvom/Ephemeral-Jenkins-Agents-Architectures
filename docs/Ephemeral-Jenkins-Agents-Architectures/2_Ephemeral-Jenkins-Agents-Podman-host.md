@@ -696,3 +696,7 @@ pipeline {
 2. **Higiene de dependencias:** Garantiza que los volúmenes del ejecutor no arrastren gigabytes de librerías de proyectos antiguos o ramas de Git que ya han sido eliminadas.
 3. **Visibilidad centralizada:** Al hacerlo mediante un pipeline, el equipo de DevOps tiene un log histórico en la interfaz de Jenkins de cuánto espacio se está limpiando y cuándo se ejecutó por última vez.
 
+
+---
+
+*Licencia: [CC BY 4.0](./LICENSE). © 2026 jenkins-podman-lab contributors.*

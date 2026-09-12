@@ -420,3 +420,7 @@ Se pueden **combinar** (p. ej. agentes "ricos" en K8s y ligeros con
 - Chart oficial Jenkins: https://github.com/jenkinsci/helm-charts
 - Guías hermanas de la serie (Podman-Host, Podman-Cloud, Kubernetes,
   comparativa).
+
+---
+
+*Licencia: [CC BY 4.0](./LICENSE). © 2026 jenkins-podman-lab contributors.*

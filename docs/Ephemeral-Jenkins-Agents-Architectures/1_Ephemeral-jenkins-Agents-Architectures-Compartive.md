@@ -296,3 +296,7 @@ Kubernetes y agentes ligeros con `agent { docker {} }`).
 - `4_Ephemeral-Jenkins-Agents-Kubernetes.md` (Jenkins-Kubernetes)
 - `5_Ephemeral-jenkins-agents-Architectures-models.md` (documento unificado)
 - Plugins: `docker-workflow`, `docker-plugin`, `kubernetes`
+
+---
+
+*Licencia: [CC BY 4.0](./LICENSE). © 2026 jenkins-podman-lab contributors.*

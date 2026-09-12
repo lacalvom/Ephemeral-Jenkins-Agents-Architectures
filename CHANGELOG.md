@@ -215,6 +215,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   4 Jenkins-Kubernetes, 5 documento unificado); hay un `README.md` en la
   carpeta a modo de indice.
 
+- **Licencia CC BY 4.0 para las guias** de
+  `docs/Ephemeral-Jenkins-Agents-Architectures/`: se anade un fichero
+  `LICENSE` con el texto legal completo de Creative Commons Atribucion
+  4.0 Internacional y un pie de licencia en cada documento. El codigo del
+  laboratorio sigue bajo licencia MIT.
+
 - **Aplicación de referencia funcional** (`jenkins-config/samples/reference-app/`)
   para poder probar el `reference-pipeline` de extremo a extremo:
   backend Java 17 + Spring Boot 3.5.9 + Maven (`GET /api/hello`,

@@ -29,7 +29,18 @@ efímeros** (entornos que nacen para un build y mueren al terminar).
 > El **documento unificado** (5) ya incluye la comparativa (1), así que si
 > prefieres leer un único documento, ve directo al 5.
 
+## Licencia
+
+Los documentos de esta carpeta se distribuyen bajo la licencia
+[Creative Commons Atribución 4.0 Internacional (CC BY 4.0)](./LICENSE).
+El código del repositorio `jenkins-podman-lab` usa por separado la licencia
+MIT ([`LICENSE`](../../LICENSE)).
+
 ## Documentos relacionados (en el repo)
 
 - [Architecture Decision Records](../adr/README.md) — decisiones del laboratorio
   `jenkins-podman-lab` (incluida la que documenta el modelo Podman-Host).
+
+---
+
+*Licencia: [CC BY 4.0](./LICENSE). © 2026 jenkins-podman-lab contributors.*
