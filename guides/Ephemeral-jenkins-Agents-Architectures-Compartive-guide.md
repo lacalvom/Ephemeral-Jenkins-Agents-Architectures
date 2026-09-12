@@ -51,7 +51,7 @@ tratan los tres modelos.
 
 ---
 
-## 3. Modelo 1 — Podman-Host
+## 3. Podman-Host
 
 ### 3.1 Concepto
 
@@ -105,12 +105,12 @@ stage('Backend') {
   (muy efímero); fácil de depurar en el log del stage.
 - **Contras**: el pipeline conoce Docker (acoplado); un solo nodo anfitrión;
   menos aislamiento entre proyectos.
-- **Cuándo**: un único host Podman/Docker con varios proyectos y toolchains
-  cambiantes. **Es el modelo de este laboratorio.**
+- **Cuándo**: un único host Podman con varios proyectos y toolchains
+  cambiantes. **Es el modelo del laboratorio Podman-Host.**
 
 ---
 
-## 4. Modelo 2 — Podman-Cloud
+## 4. Podman-Cloud
 
 ### 4.1 Concepto
 
@@ -163,7 +163,7 @@ stage('Backend') {
 
 ---
 
-## 5. Modelo 3 — Jenkins-Kubernetes
+## 5. Jenkins-Kubernetes
 
 ### 5.1 Concepto
 
@@ -259,7 +259,7 @@ container('maven') { sh 'mvn -B clean package' }
 ## 7. Árbol de decisión
 
 1. ¿Ya tienes (o quieres) un clúster Kubernetes? → **Jenkins-Kubernetes**.
-2. ¿Un solo host Podman/Docker y varios proyectos con toolchains distintas? →
+2. ¿Un solo host Podman y varios proyectos con toolchains distintas? →
    **Podman-Host**.
 3. ¿Un host Docker/Podman pero necesitas labels, cuotas y aislamiento por
    proyecto, y puedes mantener imágenes-agente? → **Podman-Cloud**.

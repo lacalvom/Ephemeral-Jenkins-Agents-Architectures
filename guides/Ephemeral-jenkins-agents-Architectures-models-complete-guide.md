@@ -52,7 +52,7 @@ De esas cuatro respuestas surgen los tres modelos.
 
 Nombres que usaremos:
 
-- **Podman-Host**: el modelo de este laboratorio Podman.
+- **Podman-Host**: el modelo del laboratorio **Podman-Host**.
 - **Podman-Cloud**: la "definición Cloud" con `docker-plugin`.
 - **Jenkins-Kubernetes**: todo sobre Kubernetes con `kubernetes-plugin`.
 
@@ -75,7 +75,7 @@ Nombres que usaremos:
 
 # PARTE II — Explicación de cada modelo
 
-## 4. Modelo A — Podman-Host
+## 4. Podman-Host
 
 ### 4.1 Concepto
 
@@ -131,7 +131,7 @@ stage('Backend') {
 
 - No hay labels: el **pipeline elige la imagen** de cada stage.
 
-### 4.7 Pipeline típico (laboratorio)
+### 4.7 Pipeline típico (laboratorio Podman-Host)
 
 ```groovy
 pipeline {
@@ -157,11 +157,11 @@ pipeline {
   depurar.
 - **Contras**: el pipeline conoce Docker; un solo nodo anfitrión; menos
   aislamiento entre proyectos.
-- **Cuándo**: un host Podman/Docker, varios proyectos, toolchains cambiantes.
+- **Cuándo**: un host Podman, varios proyectos, toolchains cambiantes.
 
 ---
 
-## 5. Modelo B — Podman-Cloud
+## 5. Podman-Cloud
 
 ### 5.1 Concepto
 
@@ -258,7 +258,7 @@ jenkins:
 
 ---
 
-## 6. Modelo C — Jenkins-Kubernetes
+## 6. Jenkins-Kubernetes
 
 ### 6.1 Concepto
 
@@ -378,7 +378,7 @@ pipeline {
 ## 8. Cómo elegir
 
 1. ¿Ya hay (o quieres) Kubernetes? → **Jenkins-Kubernetes**.
-2. ¿Un host Podman/Docker y toolchains cambiantes? → **Podman-Host**.
+2. ¿Un host Podman y toolchains cambiantes? → **Podman-Host**.
 3. ¿Un host pero necesitas labels/cuotas/aislamiento y puedes mantener
    imágenes-agente? → **Podman-Cloud**.
 4. ¿Mínima infra y todo en el pipeline? → **Podman-Host**.
@@ -389,7 +389,7 @@ Se pueden **combinar** (p. ej. agentes "ricos" en K8s y ligeros con
 
 ## 9. Temas transversales
 
-- **Seguridad de la API**: exponer la API de Podman/Docker da control total;
+- **Seguridad de la API**: exponer la API de Podman da control total;
   TLS mutuo o túnel SSH. En K8s, RBAC mínimo por namespace.
 - **Imágenes-agente** (Cloud/Kubernetes): construir con
   `FROM jenkins/inbound-agent` + toolchain. En Podman-Host no hacen falta.
