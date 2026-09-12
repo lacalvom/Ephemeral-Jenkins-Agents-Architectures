@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2026 Cloudsdoers
----
+# Extensiones X.509 del certificado de CLIENTE (Jenkins Controller).
+# Este fichero lo consume "openssl x509 -extfile", asi que NO puede llevar
+# cabeceras YAML ni separadores "---": solo directivas de OpenSSL.
 extendedKeyUsage = clientAuth
 keyUsage = digitalSignature
