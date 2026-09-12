@@ -200,7 +200,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Corregida la documentacion: ya no se exige un storage pool de libvirt
     (`hdd-vms`); los scripts escriben directamente en `STORAGE_DIR`.
   - Eliminados los ficheros `network-config` residuales en `aux-files/`.
-  - Anadidos `LICENSE` (MIT) y `CONTRIBUTING.md`.
+  - Anadidos `LICENSE` y `CONTRIBUTING.md`.
+  - **Licencia del codigo cambiada de MIT a Apache 2.0.** Se reemplaza el
+    `LICENSE` de la raiz por el texto completo de Apache License 2.0 y se
+    anade un fichero `NOTICE` con la atribucion. Aporta concesion explicita
+    de patentes y terminos de contribucion mas claros. Las guias de
+    `docs/Ephemeral-Jenkins-Agents-Architectures/` siguen bajo CC BY 4.0.
 
 ### Añadido
 
@@ -219,7 +224,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   `docs/Ephemeral-Jenkins-Agents-Architectures/`: se anade un fichero
   `LICENSE` con el texto legal completo de Creative Commons Atribucion
   4.0 Internacional y un pie de licencia en cada documento. El codigo del
-  laboratorio sigue bajo licencia MIT.
+  laboratorio usa aparte una licencia OSI (Apache 2.0; ver mas arriba).
 
 - **Aplicación de referencia funcional** (`jenkins-config/samples/reference-app/`)
   para poder probar el `reference-pipeline` de extremo a extremo:

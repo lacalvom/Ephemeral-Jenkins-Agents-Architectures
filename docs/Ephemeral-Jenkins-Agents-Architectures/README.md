@@ -34,7 +34,7 @@ efímeros** (entornos que nacen para un build y mueren al terminar).
 Los documentos de esta carpeta se distribuyen bajo la licencia
 [Creative Commons Atribución 4.0 Internacional (CC BY 4.0)](./LICENSE).
 El código del repositorio `jenkins-podman-lab` usa por separado la licencia
-MIT ([`LICENSE`](../../LICENSE)).
+Apache 2.0 ([`LICENSE`](../../LICENSE)).
 
 ## Documentos relacionados (en el repo)
 

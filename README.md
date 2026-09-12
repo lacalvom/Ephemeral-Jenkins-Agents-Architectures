@@ -152,6 +152,11 @@ Jenkins, el Plugin Manager, las dependencias del agente, etc.
 
 ```
 jenkins-podman-lab/
+├── README.md                              # Documentacion principal
+├── CHANGELOG.md                           # Historial de versiones
+├── CONTRIBUTING.md                        # Guia de contribucion
+├── LICENSE                                # Licencia del codigo (Apache 2.0)
+├── NOTICE                                 # Aviso de atribucion (Apache 2.0)
 ├── deploy.sh                              # Crea las VMs en libvirt
 ├── destroy.sh                             # Destruye las VMs y limpia reservas DHCP
 ├── aux-files/                             # Imagen cloud cacheada + caches por VM
@@ -163,7 +168,9 @@ jenkins-podman-lab/
 │   ├── hosts.ini                          # Inventario de las VMs
 │   ├── site.yml                           # Playbook principal (unico; 5 fases)
 │   ├── group_vars/
-│   │   └── all.yml                        # Variables globales
+│   │   └── all/
+│   │       ├── vars.yml                    # Variables globales
+│   │       └── vault.yml.example           # Plantilla de secretos (no versionar vault.yml)
 │   ├── files/
 │   │   └── bcrypt-jenkins.py              # Helper para hash bcrypt del admin
 │   └── roles/
@@ -1012,7 +1019,9 @@ Las decisiones tecnicas importantes estan documentadas como ADRs en
 ## Licencia
 
 - **Codigo del laboratorio** (scripts `deploy.sh`/`destroy.sh`, roles de
-  Ansible, configuracion de Jenkins): licencia [MIT](./LICENSE).
+  Ansible, configuracion de Jenkins): licencia
+  [Apache 2.0](./LICENSE), con el aviso de atribucion en
+  [NOTICE](./NOTICE).
 - **Guias de arquitecturas de agentes efimeros**
   (`docs/Ephemeral-Jenkins-Agents-Architectures/`): licencia
   [CC BY 4.0](./docs/Ephemeral-Jenkins-Agents-Architectures/LICENSE)
