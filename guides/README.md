@@ -5,18 +5,18 @@ específica de **cada modelo vive dentro de su laboratorio** (`<lab>/docs/guides
 
 ## En esta carpeta (raíz `guides/`)
 
-1. **[1_Ephemeral-jenkins-Agents-Architectures-Compartive.md](./1_Ephemeral-jenkins-Agents-Architectures-Compartive.md)**
+1. **[Ephemeral-jenkins-Agents-Architectures-Compartive-guide.md](./Ephemeral-jenkins-Agents-Architectures-Compartive-guide.md)**
    — Comparativa de los tres modelos. **Empieza aquí.**
-2. **[5_Ephemeral-jenkins-agents-Architectures-models.md](./5_Ephemeral-jenkins-agents-Architectures-models.md)**
+2. **[Ephemeral-jenkins-agents-Architectures-models-complete-guide.md](./Ephemeral-jenkins-agents-Architectures-models-complete-guide.md)**
    — **Documento unificado** (todo en uno). Úsalo como referencia/consulta.
 
 ## Guías por modelo (en cada laboratorio)
 
-| # | Modelo | Guía |
-|---|---|---|
-| 2 | **Podman-Host** | [`Podman-Host/docs/guides/2_Ephemeral-Jenkins-Agents-Podman-host.md`](../Podman-Host/docs/guides/2_Ephemeral-Jenkins-Agents-Podman-host.md) |
-| 3 | **Podman-Cloud** | [`Podman-Cloud/docs/guides/3_Ephemeral-Jenkins-Agents-Podman-Cloud.md`](../Podman-Cloud/docs/guides/3_Ephemeral-Jenkins-Agents-Podman-Cloud.md) |
-| 4 | **Jenkins-Kubernetes** | [`Jenkins-Kubernetes/docs/guides/4_Ephemeral-Jenkins-Agents-Kubernetes.md`](../Jenkins-Kubernetes/docs/guides/4_Ephemeral-Jenkins-Agents-Kubernetes.md) |
+| Modelo | Guía |
+|---|---|
+| **Podman-Host** | [`Podman-Host/docs/guides/Ephemeral-Jenkins-Agents-Podman-host.md`](../Podman-Host/docs/guides/Ephemeral-Jenkins-Agents-Podman-host.md) |
+| **Podman-Cloud** | [`Podman-Cloud/docs/guides/Ephemeral-Jenkins-Agents-Podman-Cloud.md`](../Podman-Cloud/docs/guides/Ephemeral-Jenkins-Agents-Podman-Cloud.md) |
+| **Jenkins-Kubernetes** | [`Jenkins-Kubernetes/docs/guides/Ephemeral-Jenkins-Agents-Kubernetes.md`](../Jenkins-Kubernetes/docs/guides/Ephemeral-Jenkins-Agents-Kubernetes.md) |
 
 ## ADRs
 

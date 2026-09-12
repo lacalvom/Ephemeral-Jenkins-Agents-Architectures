@@ -4,10 +4,10 @@
 > (1) las explicaciones de los modelos existentes, y (2) el detalle de cada uno.
 >
 > Es la versión "todo en uno" de la serie:
-> - `2_Ephemeral-Jenkins-Agents-Podman-host.md` — guía del modelo **Podman-Host** (laboratorio Podman).
-> - `3_Ephemeral-Jenkins-Agents-Podman-Cloud.md` — guía del modelo **Podman-Cloud**.
-> - `4_Ephemeral-Jenkins-Agents-Kubernetes.md` — guía del modelo **Jenkins-Kubernetes**.
-> - `1_Ephemeral-jenkins-Agents-Architectures-Compartive.md` — comparativa de los tres modelos.
+> - `Ephemeral-Jenkins-Agents-Podman-host.md` — guía del modelo **Podman-Host** (laboratorio Podman).
+> - `Ephemeral-Jenkins-Agents-Podman-Cloud.md` — guía del modelo **Podman-Cloud**.
+> - `Ephemeral-Jenkins-Agents-Kubernetes.md` — guía del modelo **Jenkins-Kubernetes**.
+> - `Ephemeral-jenkins-Agents-Architectures-Compartive-guide.md` — comparativa de los tres modelos.
 
 ---
 
@@ -409,7 +409,7 @@ Se pueden **combinar** (p. ej. agentes "ricos" en K8s y ligeros con
 - El siguiente laboratorio natural (si se quiere explorar K8s) es
   **Jenkins-Kubernetes**, partiendo del chart `jenkins/jenkins` sobre un clúster
   local (kind/k3d/k3s), tal y como se describe en
-  `4_Ephemeral-Jenkins-Agents-Kubernetes.md`.
+  `Ephemeral-Jenkins-Agents-Kubernetes.md`.
 
 ## 11. Referencias
 

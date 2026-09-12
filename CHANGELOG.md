@@ -157,18 +157,20 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
     tal cual (deploy/destroy, ansible, jenkins-config, legacy-images).
   - `Podman-Cloud/` y `Jenkins-Kubernetes/` — nuevos directorios con su
     `README.md` y roadmap (lab pendiente de implementar).
-  - La **documentacion es comun** en `docs/`: `docs/adr/` (ADRs) y
-    `docs/guides/` (antes `docs/Ephemeral-Jenkins-Agents-Architectures/`).
   - `.gitignore` adaptado a las nuevas rutas (`*/aux-files/*`, `*/.env`,
     `*/ansible/group_vars/all/vault.yml`).
 
 - **Reorganizacion de la documentacion por laboratorio.**
-  - Los **ADRs** pasan a `Podman-Host/docs/adr/` (aplican a ese laboratorio).
-  - La **guia de cada modelo** pasa a `<lab>/docs/guides/`
-    (`Podman-Host/docs/guides/2_...`, `Podman-Cloud/docs/guides/3_...`,
-    `Jenkins-Kubernetes/docs/guides/4_...`).
+  - Los **ADRs** pasan a `<lab>/docs/adr/` (cada lab documenta lo suyo).
+    `Podman-Cloud/docs/adr/` y `Jenkins-Kubernetes/docs/adr/` se crean con su
+    `README.md` y `TEMPLATE.md`.
+  - La **guia de cada modelo** pasa a `<lab>/docs/guides/`.
   - En la raiz, `docs/` se renombra a **`guides/`** y contiene solo la
-    **comparativa** (`1_...`) y el **documento unificado** (`5_...`).
+    **comparativa** y el **documento unificado** (mas su `LICENSE` CC BY 4.0).
+  - Se eliminan los **prefijos de orden de lectura** (`N_`) de los ficheros de
+    guia. Las generales pasan a llamarse
+    `Ephemeral-jenkins-Agents-Architectures-Compartive-guide.md` y
+    `Ephemeral-jenkins-agents-Architectures-models-complete-guide.md`.
 
 - **`podman_secrets_tooling` deja de ser un playbook opcional
   (`ansible/secrets-tooling.yml` + grupo `[podman_secret_hosts]` en
@@ -234,20 +236,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Añadido
 
-- **Guias de arquitecturas de agentes efimeros de Jenkins**
-  (`docs/guides/`): los tres modelos
+- **Guias de arquitecturas de agentes efimeros de Jenkins**: los tres modelos
   posibles (`Podman-Host` con `docker-workflow`, `Podman-Cloud` con
-  `docker-plugin` y `Jenkins-Kubernetes` con `kubernetes-plugin`), una
-  comparativa de los tres y un documento unificado. Incluye como se
+  `docker-plugin` y `Jenkins-Kubernetes` con `kubernetes-plugin`), la
+  comparativa general y el documento unificado (en `guides/`), y la guia de
+  cada modelo dentro de su lab (`<lab>/docs/guides/`). Incluye como se
   gestionan workspace, caches y seleccion de agente en cada modelo.
-  Los ficheros llevan prefijo `N_` con el **orden de lectura**
-  recomendado (1 comparativa, 2 Podman-Host, 3 Podman-Cloud,
-  4 Jenkins-Kubernetes, 5 documento unificado); hay un `README.md` en la
-  carpeta a modo de indice.
 
-- **Licencia CC BY 4.0 para las guias** de
-  `docs/guides/`: se anade un fichero
-  `LICENSE` con el texto legal completo de Creative Commons Atribucion
+- **Licencia CC BY 4.0 para las guias** (`guides/LICENSE`): se anade un
+  fichero `LICENSE` con el texto legal completo de Creative Commons Atribucion
   4.0 Internacional y un pie de licencia en cada documento. El codigo del
   laboratorio usa aparte una licencia OSI (Apache 2.0; ver mas arriba).
 

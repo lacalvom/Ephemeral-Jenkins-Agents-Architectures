@@ -1,10 +1,10 @@
 # Arquitectura de Agentes Efímeros de Jenkins sobre Kubernetes (modelo `Jenkins-Kubernetes`)
 
 > Tercer documento de la serie, complementario a:
-> - `2_Ephemeral-Jenkins-Agents-Podman-host.md` (modelo **Podman-Host**)
-> - `3_Ephemeral-Jenkins-Agents-Podman-Cloud.md` (modelo **Podman-Cloud**)
-> - `1_Ephemeral-jenkins-Agents-Architectures-Compartive.md` (comparativa de los 3 modelos)
-> - `5_Ephemeral-jenkins-agents-Architectures-models.md` (documento unificado)
+> - `Ephemeral-Jenkins-Agents-Podman-host.md` (modelo **Podman-Host**)
+> - `Ephemeral-Jenkins-Agents-Podman-Cloud.md` (modelo **Podman-Cloud**)
+> - `Ephemeral-jenkins-Agents-Architectures-Compartive-guide.md` (comparativa de los 3 modelos)
+> - `Ephemeral-jenkins-agents-Architectures-models-complete-guide.md` (documento unificado)
 >
 > Aquí se describe cómo montar **toda** la infraestructura de agentes efímeros
 > de Jenkins sobre Kubernetes, **incluido el propio controller corriendo como
@@ -667,10 +667,10 @@ partida más rápido y realista.
 - Chart oficial: https://github.com/jenkinsci/helm-charts (chart `jenkins`)
 - Inbound agent: https://github.com/jenkinsci/docker-agent
 - Documentos hermanos de esta serie:
-  `2_Ephemeral-Jenkins-Agents-Podman-host.md`,
-  `3_Ephemeral-Jenkins-Agents-Podman-Cloud.md`,
-  `1_Ephemeral-jenkins-Agents-Architectures-Compartive.md`,
-  `5_Ephemeral-jenkins-agents-Architectures-models.md`.
+  `Ephemeral-Jenkins-Agents-Podman-host.md`,
+  `Ephemeral-Jenkins-Agents-Podman-Cloud.md`,
+  `Ephemeral-jenkins-Agents-Architectures-Compartive-guide.md`,
+  `Ephemeral-jenkins-agents-Architectures-models-complete-guide.md`.
 
 ---
 

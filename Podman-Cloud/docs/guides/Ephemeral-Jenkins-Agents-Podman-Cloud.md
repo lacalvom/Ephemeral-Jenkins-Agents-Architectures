@@ -4,7 +4,7 @@
 > (Cloud + Docker Agent Templates): Jenkins aprovisiona **contenedores-agente
 > bajo demanda** sobre un Podman Host, seleccionables por label.
 
-> Documento complementario a `2_Ephemeral-Jenkins-Agents-Podman-host.md`.
+> Documento complementario a `Ephemeral-Jenkins-Agents-Podman-host.md`.
 > Aquí se analiza **el otro modelo** de agentes efímeros en Jenkins: definir
 > la infraestructura como una **"Cloud" (Docker plugin) con plantillas de
 > agente**, en lugar de crear contenedores desde el propio `Jenkinsfile` con
@@ -602,7 +602,7 @@ Diferencias con el pipeline del Modelo A:
 - JCasC (ejemplo Docker):
   https://github.com/jenkinsci/configuration-as-code-plugin/tree/master/demos/docker
 - Guia principal del laboratorio Podman-Host:
-  [`2_Ephemeral-Jenkins-Agents-Podman-host.md`](../../../Podman-Host/docs/guides/2_Ephemeral-Jenkins-Agents-Podman-host.md)
+  [`Ephemeral-Jenkins-Agents-Podman-host.md`](../../../Podman-Host/docs/guides/Ephemeral-Jenkins-Agents-Podman-host.md)
 - ADRs relacionados (del lab Podman-Host):
   [ADR-005](../../../Podman-Host/docs/adr/0005-podman-secrets-como-root.md) (secrets root),
   [ADR-009](../../../Podman-Host/docs/adr/0009-reference-app-sin-scm.md) (app de referencia sin SCM),

@@ -5,11 +5,11 @@
 > que nacen para un build y mueren al terminar).
 >
 > Guías profundas de cada modelo:
-> - **Podman-Host**: `2_Ephemeral-Jenkins-Agents-Podman-host.md`
-> - **Podman-Cloud**: `3_Ephemeral-Jenkins-Agents-Podman-Cloud.md`
-> - **Jenkins-Kubernetes**: `4_Ephemeral-Jenkins-Agents-Kubernetes.md`
+> - **Podman-Host**: `Ephemeral-Jenkins-Agents-Podman-host.md`
+> - **Podman-Cloud**: `Ephemeral-Jenkins-Agents-Podman-Cloud.md`
+> - **Jenkins-Kubernetes**: `Ephemeral-Jenkins-Agents-Kubernetes.md`
 >
-> Documento unificado (todo en uno): `5_Ephemeral-jenkins-agents-Architectures-models.md`.
+> Documento unificado (todo en uno): `Ephemeral-jenkins-agents-Architectures-models-complete-guide.md`.
 
 ---
 
@@ -291,10 +291,10 @@ Kubernetes y agentes ligeros con `agent { docker {} }`).
 
 ## 9. Referencias
 
-- `2_Ephemeral-Jenkins-Agents-Podman-host.md` (Podman-Host)
-- `3_Ephemeral-Jenkins-Agents-Podman-Cloud.md` (Podman-Cloud)
-- `4_Ephemeral-Jenkins-Agents-Kubernetes.md` (Jenkins-Kubernetes)
-- `5_Ephemeral-jenkins-agents-Architectures-models.md` (documento unificado)
+- `Ephemeral-Jenkins-Agents-Podman-host.md` (Podman-Host)
+- `Ephemeral-Jenkins-Agents-Podman-Cloud.md` (Podman-Cloud)
+- `Ephemeral-Jenkins-Agents-Kubernetes.md` (Jenkins-Kubernetes)
+- `Ephemeral-jenkins-agents-Architectures-models-complete-guide.md` (documento unificado)
 - Plugins: `docker-workflow`, `docker-plugin`, `kubernetes`
 
 ---

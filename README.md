@@ -9,13 +9,13 @@ es común y vive en `docs/`.
 
 | Modelo | Carpeta (lab) | Guía | Plugin | Entorno |
 |---|---|---|---|---|
-| **Podman-Host** | [`Podman-Host/`](./Podman-Host/) | [guía](./Podman-Host/docs/guides/2_Ephemeral-Jenkins-Agents-Podman-host.md) | `docker-workflow` (`agent { docker { ... } }`) | contenedor por stage |
-| **Podman-Cloud** | [`Podman-Cloud/`](./Podman-Cloud/) | [guía](./Podman-Cloud/docs/guides/3_Ephemeral-Jenkins-Agents-Podman-Cloud.md) | `docker-plugin` (Cloud + Docker Agent Templates) | contenedor-agente por build |
-| **Jenkins-Kubernetes** | [`Jenkins-Kubernetes/`](./Jenkins-Kubernetes/) | [guía](./Jenkins-Kubernetes/docs/guides/4_Ephemeral-Jenkins-Agents-Kubernetes.md) | `kubernetes-plugin` | Pod-agente por build |
+| **Podman-Host** | [`Podman-Host/`](./Podman-Host/) | [guía](./Podman-Host/docs/guides/Ephemeral-Jenkins-Agents-Podman-host.md) | `docker-workflow` (`agent { docker { ... } }`) | contenedor por stage |
+| **Podman-Cloud** | [`Podman-Cloud/`](./Podman-Cloud/) | [guía](./Podman-Cloud/docs/guides/Ephemeral-Jenkins-Agents-Podman-Cloud.md) | `docker-plugin` (Cloud + Docker Agent Templates) | contenedor-agente por build |
+| **Jenkins-Kubernetes** | [`Jenkins-Kubernetes/`](./Jenkins-Kubernetes/) | [guía](./Jenkins-Kubernetes/docs/guides/Ephemeral-Jenkins-Agents-Kubernetes.md) | `kubernetes-plugin` | Pod-agente por build |
 
-**Empieza por la [comparativa de los tres modelos](./guides/1_Ephemeral-jenkins-Agents-Architectures-Compartive.md)**
+**Empieza por la [comparativa de los tres modelos](./guides/Ephemeral-jenkins-Agents-Architectures-Compartive-guide.md)**
 y, si prefieres un único documento, el
-[documento unificado](./guides/5_Ephemeral-jenkins-agents-Architectures-models.md).
+[documento unificado](./guides/Ephemeral-jenkins-agents-Architectures-models-complete-guide.md).
 
 ## Qué es un agente efímero
 

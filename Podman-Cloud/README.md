@@ -2,7 +2,7 @@
 
 > **Estado: en preparacion.** Este directorio contendrá el laboratorio
 > reproducible del modelo **Podman-Cloud**. La guía ya está escrita
-> ([`docs/guides/3_Ephemeral-Jenkins-Agents-Podman-Cloud.md`](docs/guides/3_Ephemeral-Jenkins-Agents-Podman-Cloud.md));
+> ([`docs/guides/Ephemeral-Jenkins-Agents-Podman-Cloud.md`](docs/guides/Ephemeral-Jenkins-Agents-Podman-Cloud.md));
 > el codigo del lab se implementará después.
 
 ## El modelo
@@ -13,7 +13,7 @@ seleccionables por *label*. A diferencia de Podman-Host, aquí las imágenes
 deben ser **agentes Jenkins** (JDK + `jenkins/inbound-agent`) y el workspace y
 las cachés se configuran en la **plantilla**, no en el `Jenkinsfile`.
 
-Referencia: [guía del modelo Podman-Cloud](docs/guides/3_Ephemeral-Jenkins-Agents-Podman-Cloud.md).
+Referencia: [guía del modelo Podman-Cloud](docs/guides/Ephemeral-Jenkins-Agents-Podman-Cloud.md).
 
 ## Roadmap del laboratorio
 
