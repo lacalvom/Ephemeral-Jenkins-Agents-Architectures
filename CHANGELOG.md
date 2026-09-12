@@ -204,6 +204,17 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Añadido
 
+- **Guias de arquitecturas de agentes efimeros de Jenkins**
+  (`docs/Ephemeral-Jenkins-Agents-Architectures/`): los tres modelos
+  posibles (`Podman-Host` con `docker-workflow`, `Podman-Cloud` con
+  `docker-plugin` y `Jenkins-Kubernetes` con `kubernetes-plugin`), una
+  comparativa de los tres y un documento unificado. Incluye como se
+  gestionan workspace, caches y seleccion de agente en cada modelo.
+  Los ficheros llevan prefijo `N_` con el **orden de lectura**
+  recomendado (1 comparativa, 2 Podman-Host, 3 Podman-Cloud,
+  4 Jenkins-Kubernetes, 5 documento unificado); hay un `README.md` en la
+  carpeta a modo de indice.
+
 - **Aplicación de referencia funcional** (`jenkins-config/samples/reference-app/`)
   para poder probar el `reference-pipeline` de extremo a extremo:
   backend Java 17 + Spring Boot 3.5.9 + Maven (`GET /api/hello`,

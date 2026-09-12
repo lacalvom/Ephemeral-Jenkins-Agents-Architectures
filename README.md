@@ -190,18 +190,31 @@ jenkins-podman-lab/
 │           ├── podman-compose.yml          #   Prueba manual (backend + frontend)
 │           └── README.md
 └── docs/                                  # Documentacion
-    └── adr/                               # Architecture Decision Records
-        ├── README.md
-        ├── TEMPLATE.md
-        ├── 0001-almalinux-9-vs-rhel.md
-        ├── 0002-dhcp-estatico-vs-cloud-init.md
-        ├── 0003-init-groovy-vs-jcasc.md
-        ├── 0004-secret-agente-via-rest-api.md
-        ├── 0005-podman-secrets-como-root.md
-        ├── 0006-plugin-manager-tool.md
-        ├── 0007-nsswitch-conf-dns-fix.md
-        ├── 0008-jnlp-port-and-installstate-fix.md
-        └── 0009-reference-app-sin-scm.md
+    ├── adr/                               # Architecture Decision Records
+    │   ├── README.md
+    │   ├── TEMPLATE.md
+    │   ├── 0001-almalinux-9-vs-rhel.md
+    │   ├── 0002-dhcp-estatico-vs-cloud-init.md
+    │   ├── 0003-init-groovy-vs-jcasc.md
+    │   ├── 0004-secret-agente-via-rest-api.md
+    │   ├── 0005-podman-secrets-como-root.md
+    │   ├── 0006-plugin-manager-tool.md
+    │   ├── 0007-nsswitch-conf-dns-fix.md
+    │   ├── 0008-jnlp-port-and-installstate-fix.md
+    │   ├── 0009-reference-app-sin-scm.md
+    │   ├── 0010-habilitar-podman-socket.md
+    │   ├── 0011-security-opt-label-disable-podman-socket.md
+    │   ├── 0012-instalar-podman-compose.md
+    │   ├── 0013-integrar-secrets-tooling-en-site-yml.md
+    │   ├── 0014-entropia-vms-gpg.md
+    │   └── 0015-fix-crypta-y-pass-driver.md
+    └── Ephemeral-Jenkins-Agents-Architectures/   # Guias de arquitecturas de agentes efimeros
+        ├── README.md                             #   Indice y orden de lectura
+        ├── 1_Ephemeral-jenkins-Agents-Architectures-Compartive.md
+        ├── 2_Ephemeral-Jenkins-Agents-Podman-host.md
+        ├── 3_Ephemeral-Jenkins-Agents-Podman-Cloud.md
+        ├── 4_Ephemeral-Jenkins-Agents-Kubernetes.md
+        └── 5_Ephemeral-jenkins-agents-Architectures-models.md
 ```
 
 ---
@@ -957,6 +970,14 @@ Las decisiones tecnicas importantes estan documentadas como ADRs en
 - **ADR-013:** Integrar `podman_secrets_tooling` en `site.yml` (Fase 5) y automatizar los 3 drivers
 - **ADR-014:** Entropia suficiente en las VMs para operaciones criptograficas (GPG)
 - **ADR-015:** Reemplazar `crypta` por `sops`+`age` directo, y corregir el driver `pass` (bug real, no TTY)
+
+**Guias de arquitecturas de agentes efimeros** (`docs/Ephemeral-Jenkins-Agents-Architectures/`), en orden de lectura recomendado:
+
+1. [Comparativa de los tres modelos](./docs/Ephemeral-Jenkins-Agents-Architectures/1_Ephemeral-jenkins-Agents-Architectures-Compartive.md) — panorama de Podman-Host, Podman-Cloud y Jenkins-Kubernetes.
+2. [Podman-Host](./docs/Ephemeral-Jenkins-Agents-Architectures/2_Ephemeral-Jenkins-Agents-Podman-host.md) — agentes efimeros con `docker-workflow` (`agent { docker { ... } }`), un contenedor por stage.
+3. [Podman-Cloud](./docs/Ephemeral-Jenkins-Agents-Architectures/3_Ephemeral-Jenkins-Agents-Podman-Cloud.md) — Cloud con `docker-plugin` y Docker Agent Templates.
+4. [Jenkins-Kubernetes](./docs/Ephemeral-Jenkins-Agents-Architectures/4_Ephemeral-Jenkins-Agents-Kubernetes.md) — agentes efimeros sobre Kubernetes (controller dentro o fuera del cluster).
+5. [Documento unificado](./docs/Ephemeral-Jenkins-Agents-Architectures/5_Ephemeral-jenkins-agents-Architectures-models.md) — todo en uno, como referencia.
 
 ---
 

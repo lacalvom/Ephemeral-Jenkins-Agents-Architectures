@@ -151,7 +151,7 @@ Para entornos donde la seguridad es critica, considerar:
 
 ## Referencias
 
-- Guia original del proyecto: `../Ephemeral-Agent-Architecture-Podman-Jenkins.md`
+- Guia original del proyecto: `../docs/Ephemeral-Jenkins-Agents-Architectures/2_Ephemeral-Jenkins-Agents-Podman-host.md`
 - Temurin (Eclipse Adoptium): https://adoptium.net/
 - Node.js archives: https://nodejs.org/dist/
 - Apache Maven archives: https://archive.apache.org/dist/maven/
