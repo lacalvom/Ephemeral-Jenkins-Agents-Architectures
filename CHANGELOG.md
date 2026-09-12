@@ -150,6 +150,18 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Cambiado
 
+- **Reestructuracion del repositorio en tres laboratorios por modelo.** El
+  repositorio pasa a llamarse **`Ephemeral-Jenkins-Agents-Architectures`** y
+  organiza un laboratorio autocontenido por modelo de agentes efimeros:
+  - `Podman-Host/` — el laboratorio anterior (Jenkins + Podman Host), movido
+    tal cual (deploy/destroy, ansible, jenkins-config, legacy-images).
+  - `Podman-Cloud/` y `Jenkins-Kubernetes/` — nuevos directorios con su
+    `README.md` y roadmap (lab pendiente de implementar).
+  - La **documentacion es comun** en `docs/`: `docs/adr/` (ADRs) y
+    `docs/guides/` (antes `docs/Ephemeral-Jenkins-Agents-Architectures/`).
+  - `.gitignore` adaptado a las nuevas rutas (`*/aux-files/*`, `*/.env`,
+    `*/ansible/group_vars/all/vault.yml`).
+
 - **`podman_secrets_tooling` deja de ser un playbook opcional
   (`ansible/secrets-tooling.yml` + grupo `[podman_secret_hosts]` en
   `hosts.ini`).** Ahora es la Fase 5 de `ansible/site.yml`, se aplica
@@ -205,7 +217,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
     `LICENSE` de la raiz por el texto completo de Apache License 2.0 y se
     anade un fichero `NOTICE` con la atribucion. Aporta concesion explicita
     de patentes y terminos de contribucion mas claros. Las guias de
-    `docs/Ephemeral-Jenkins-Agents-Architectures/` siguen bajo CC BY 4.0.
+    `docs/guides/` siguen bajo CC BY 4.0.
   - **Atribucion a la marca Cloudsdoers y cabeceras SPDX.** El copyright
     (licencias y `NOTICE`) y los pies de las guias citan a "Cloudsdoers
     (Luis Alberto Calvo Muniz)"; se anade un aviso de marcas en el `NOTICE`
@@ -215,7 +227,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ### Añadido
 
 - **Guias de arquitecturas de agentes efimeros de Jenkins**
-  (`docs/Ephemeral-Jenkins-Agents-Architectures/`): los tres modelos
+  (`docs/guides/`): los tres modelos
   posibles (`Podman-Host` con `docker-workflow`, `Podman-Cloud` con
   `docker-plugin` y `Jenkins-Kubernetes` con `kubernetes-plugin`), una
   comparativa de los tres y un documento unificado. Incluye como se
@@ -226,7 +238,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   carpeta a modo de indice.
 
 - **Licencia CC BY 4.0 para las guias** de
-  `docs/Ephemeral-Jenkins-Agents-Architectures/`: se anade un fichero
+  `docs/guides/`: se anade un fichero
   `LICENSE` con el texto legal completo de Creative Commons Atribucion
   4.0 Internacional y un pie de licencia en cada documento. El codigo del
   laboratorio usa aparte una licencia OSI (Apache 2.0; ver mas arriba).
@@ -633,6 +645,6 @@ empezar.
 - **Secret storage del agente:** /datos/jenkins/agent/secret-file
   (jenkins:jenkins, mode 0400).
 
-[Unreleased]: https://github.com/your-org/jenkins-podman-lab/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/your-org/jenkins-podman-lab/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/your-org/jenkins-podman-lab/releases/tag/v0.1.0
+[Unreleased]: https://github.com/lacalvom/Ephemeral-Jenkins-Agents-Architectures/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/lacalvom/Ephemeral-Jenkins-Agents-Architectures/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/lacalvom/Ephemeral-Jenkins-Agents-Architectures/releases/tag/v0.1.0

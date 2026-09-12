@@ -22,7 +22,7 @@ modo rootless sin TTY (mensaje "No public key")
 
 Según lo documentado hasta ahora (ADR-005), ambos eran "limitaciones
 conocidas, sin workaround". Revisando la guía original
-([`2_Ephemeral-Jenkins-Agents-Podman-host.md`](../Ephemeral-Jenkins-Agents-Architectures/2_Ephemeral-Jenkins-Agents-Podman-host.md), sección "Uso de
+([`2_Ephemeral-Jenkins-Agents-Podman-host.md`](../guides/2_Ephemeral-Jenkins-Agents-Podman-host.md), sección "Uso de
 Podman Secrets para Credenciales y Configuraciones") y depurando cada
 caso a fondo, se encontraron **causas concretas y solucionables** para
 ambos.

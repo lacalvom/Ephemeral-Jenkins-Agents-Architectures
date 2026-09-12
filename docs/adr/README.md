@@ -1,7 +1,7 @@
 # Architecture Decision Records (ADRs)
 
 Este directorio contiene los registros de decisiones arquitectónicas del
-proyecto `jenkins-podman-lab`. Cada ADR documenta una decision tecnica
+proyecto `Ephemeral-Jenkins-Agents-Architectures`. Cada ADR documenta una decision tecnica
 importante, su contexto, las alternativas consideradas y las consecuencias.
 
 ## Indice

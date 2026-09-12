@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Cloudsdoers
+---
+# =====================================================================
+# Variables globales del laboratorio Jenkins + Podman
+# =====================================================================
+
+# --- Identidad del laboratorio ---
+lab_name: "podman-host-lab"
+lab_timezone: "Europe/Madrid"
+
+# --- Usuario de las VMs (creado por cloud-init en deploy.sh) ---
+# Por defecto, el mismo usuario que ejecuta deploy.sh/ansible.
+# Nota: en la cloud image de AlmaLinux, el primer usuario creado suele
+# tener UID/GID 1000/1000. Asignamos 1100/1100 a jenkins para evitar
+# conflictos y mantener el principio de --userns=keep-id del documento
+# guia (UID numerico bajo y no root).
+vm_user: "{{ lookup('env', 'VM_USER') | default(lookup('env', 'USER'), true) }}"
+# Ansible se conecta a las VMs con ese mismo usuario.
+ansible_user: "{{ vm_user }}"
+
+jenkins_user: "jenkins"
+jenkins_group: "jenkins"
+jenkins_uid: 1100
+jenkins_gid: 1100
+jenkins_home: "/home/{{ jenkins_user }}"
+jenkins_base_dir: "/datos/jenkins"
+jenkins_agent_dir: "{{ jenkins_base_dir }}/agent"
+jenkins_workspace_dir: "{{ jenkins_base_dir }}/pipelines-workspace"
+jenkins_tmp_dir: "{{ jenkins_base_dir }}/tmp"
+
+# --- Java (versión compatible con Jenkins LTS 2.568.x) ---
+java_version: "21"
+java_package_openjdk: "java-{{ java_version }}-openjdk"
+java_package_openjdk_headless: "java-{{ java_version }}-openjdk-headless"
+
+# --- Jenkins Controller ---
+jenkins_version: "2.568.3"
+jenkins_admin_user: "admin"
+# Password del admin de Jenkins. NO hay valor por defecto en el repositorio.
+# Se define de UNA de estas dos formas (ambas fuera de git):
+#   - ansible/group_vars/all/vault.yml (copia de vault.yml.example), o
+#   - variable de entorno JENKINS_ADMIN_PASSWORD (deploy.sh la exporta
+#     automaticamente si esta definida en .env).
+# Si no se define ninguna, el playbook falla con un mensaje claro.
+jenkins_admin_password: "{{ lookup('env', 'JENKINS_ADMIN_PASSWORD') | default('', true) }}"
+jenkins_http_port: 8080
+jenkins_jnlp_port: 50000
+jenkins_controller_home: "/var/lib/jenkins"
+jenkins_service_user: "{{ jenkins_user }}"
+jenkins_service_group: "{{ jenkins_group }}"
+jenkins_repo_key_url: "https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key"
+jenkins_repo_url: "https://pkg.jenkins.io/redhat-stable"
+
+# --- Plugin Installation Manager Tool ---
+jenkins_plugin_manager_url: "https://github.com/jenkinsci/plugin-installation-manager-tool/releases/download/2.15.0/jenkins-plugin-manager-2.15.0.jar"
+jenkins_plugin_manager_jar: "/usr/local/bin/jenkins-plugin-manager.jar"
+
+# --- Artefactos de configuracion inmutable (JCasC) ---
+jenkins_config_dir: "{{ playbook_dir | dirname }}/jenkins-config"
+jenkins_config_plugins_yaml: "{{ jenkins_config_dir }}/plugins.yaml"
+jenkins_config_jenkins_yaml: "{{ jenkins_config_dir }}/casc/jenkins.yaml"
+jenkins_config_init_groovy: "{{ jenkins_config_dir }}/groovy/init.groovy"
+jenkins_config_reference_pipeline: "{{ jenkins_config_dir }}/jobs/reference-pipeline.groovy"
+
+# --- Aplicaciones de ejemplo para el pipeline de referencia ---
+# Nombre del job Jenkins (debe coincidir con el "name" del <job> creado por
+# create-pipeline.groovy y con las URLs de verificacion en jenkins_controller).
+reference_pipeline_job_name: "reference-pipeline"
+# Codigo fuente (backend Java/Maven + frontend Angular/npm) que el
+# pipeline necesita encontrar en su workspace. NO se usa SCM en este
+# laboratorio: Ansible copia este directorio directamente al workspace
+# del agente en cada provision (ver ansible/roles/podman_host).
+jenkins_config_reference_app_dir: "{{ jenkins_config_dir }}/samples/reference-app"
+# Workspace real que Jenkins usara para el job (convencion estandar:
+# <RemoteFs-del-agente>/workspace/<nombre-del-job>).
+reference_app_workspace_dest: "{{ jenkins_workspace_dir }}/workspace/{{ reference_pipeline_job_name }}"
+
+# --- Podman Host ---
+podman_agent_node_name: "podman-host-almalinux9"
+podman_agent_label: "podman-node"
+podman_agent_workspace: "{{ jenkins_workspace_dir }}"
+
+# Alias para que JCasC pueda referenciar el nombre del nodo
+jenkins_agent_node_name: "{{ podman_agent_node_name }}"
+jenkins_agent_label: "{{ podman_agent_label }}"
+
+# --- Agent registration (vía WebSocket, modo inbound) ---
+jenkins_agent_jar_url: "http://{{ hostvars['jenkins-controller']['ansible_host'] }}:{{ jenkins_http_port }}/jnlpJars/agent.jar"
+jenkins_agent_secret_path: "{{ jenkins_agent_dir }}/secret-file"
+
+# --- SELinux ---
+selinux_state: "enforcing"
+selinux_policy: "targeted"
