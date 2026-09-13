@@ -1,3 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2026 Cloudsdoers
 ---
+# Los scripts init.groovy.d/ y las variables de entorno del drop-in de
+# systemd solo se aplican al ARRANCAR Jenkins. Sin este handler, reejecutar
+# el playbook actualizaba los ficheros en disco pero Jenkins seguia con la
+# configuracion antigua hasta un reinicio manual. Los "copy" notifican este
+# handler (solo cuando el contenido cambia), y el play hace
+# "meta: flush_handlers" antes de verificar.
+- name: "jenkins_controller | Reiniciar Jenkins para aplicar init.groovy.d"
+  ansible.builtin.service:
+    name: jenkins
+    state: restarted

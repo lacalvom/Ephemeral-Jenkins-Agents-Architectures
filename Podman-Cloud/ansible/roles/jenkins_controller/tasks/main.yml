@@ -140,6 +140,7 @@
   loop: "{{ podman_tls_client_material.results }}"
   when: podman_tls_enabled | bool
   no_log: true
+  notify: "jenkins_controller | Reiniciar Jenkins para aplicar init.groovy.d"
 
 # =====================================================================
 # Copia de scripts init.groovy.d (Plan B: sin JCasC)
@@ -169,6 +170,7 @@
     - { src: "{{ jenkins_config_dir }}/groovy/create-cloud.groovy", dest: "02-create-cloud.groovy" }
     - { src: "{{ jenkins_config_dir }}/groovy/create-pipeline.groovy", dest: "03-create-pipeline.groovy" }
     - { src: "{{ jenkins_config_dir }}/groovy/create-config-files.groovy", dest: "04-create-config-files.groovy" }
+  notify: "jenkins_controller | Reiniciar Jenkins para aplicar init.groovy.d"
 
 - name: "jenkins_controller | Copiar reference-pipeline.groovy"
   ansible.builtin.copy:
@@ -177,6 +179,7 @@
     owner: "{{ jenkins_service_user }}"
     group: "{{ jenkins_service_group }}"
     mode: "0644"
+  notify: "jenkins_controller | Reiniciar Jenkins para aplicar init.groovy.d"
 
 # =====================================================================
 # Configuracion de systemd + URL + arranque
@@ -221,6 +224,7 @@
     owner: root
     group: root
     mode: "0644"
+  notify: "jenkins_controller | Reiniciar Jenkins para aplicar init.groovy.d"
 
 - name: "jenkins_controller | Recargar systemd"
   ansible.builtin.systemd:
@@ -258,6 +262,13 @@
     owner: "{{ jenkins_service_user }}"
     group: "{{ jenkins_service_group }}"
     mode: "0600"
+
+# Ejecutar ahora los handlers pendientes (reinicio de Jenkins si cambio
+# algun init.groovy.d/ o el drop-in). Se hace DESPUES de escribir
+# InstallState.xml y ANTES de arrancar/verificar, para que la verificacion
+# de mas abajo compruebe la configuracion NUEVA y no la del arranque previo.
+- name: "jenkins_controller | Aplicar cambios que requieren reinicio (flush handlers)"
+  ansible.builtin.meta: flush_handlers
 
 - name: "jenkins_controller | Habilitar y arrancar jenkins.service"
   ansible.builtin.service:

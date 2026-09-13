@@ -766,6 +766,11 @@ Diferencias con el pipeline de Podman-Host:
 
 ## 13. Troubleshooting (Podman-Cloud)
 
+- **Cambio en `init.groovy.d/` (Cloud, plantillas, pipeline…) y Jenkins no lo
+  aplica**: los scripts `init.groovy.d/` solo se ejecutan al **arrancar**
+  Jenkins. Reejecuta el playbook (`cd ansible && ansible-playbook site.yml`),
+  que copia los scripts y **reinicia Jenkins automáticamente** (handler). No
+  hace falta `./deploy.sh` (ese sí destruye y recrea las VMs).
 - **"Agent is being disconnected" / el contenedor arranca pero no conecta**:
   el controller no es alcanzable desde el contenedor. Revisa `jenkinsUrl`
   (usa la IP del controller, no `localhost`), y que el puerto HTTP/JNLP sea

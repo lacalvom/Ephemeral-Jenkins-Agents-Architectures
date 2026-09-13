@@ -9,6 +9,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Añadido
 
+- **Podman-Cloud: reejecutar el playbook aplica los cambios de `init.groovy.d`.**
+  El rol `jenkins_controller` notifica un handler que **reinicia Jenkins**
+  cuando cambian los scripts `init.groovy.d/`, el pipeline, el drop-in de
+  systemd o el material TLS de cliente, y hace `meta: flush_handlers` antes de
+  verificar. Antes, reejecutar `ansible-playbook site.yml` copiaba los ficheros
+  pero Jenkins seguía con la configuración antigua hasta un reinicio manual.
+
 - **Podman-Cloud: mTLS en la API de Podman.** Nuevo rol `podman_tls` que
   genera una PKI propia (CA + certificado de servidor + certificado de
   cliente); `podman-tcp.service` pasa a escuchar en `:2376` exigiendo
