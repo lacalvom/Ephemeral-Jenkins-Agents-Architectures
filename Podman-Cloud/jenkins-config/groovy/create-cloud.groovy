@@ -73,11 +73,18 @@ def makeTemplate = { String name, String label, String image, String mounts, Str
     if (secOpts) {
         base.securityOptsString = secOpts
     }
+    // IMPORTANTE: el usuario del CONTENEDOR se fija en el DockerTemplateBase
+    // (campo "User" de la plantilla, getUser() -> containerConfig.withUser).
+    // El campo "user" del DockerComputerJNLPConnector es legacy y NO afecta
+    // al usuario con el que corre el contenedor. Si se pone solo en el
+    // connector, el contenedor arranca como el usuario por defecto de la
+    // imagen (jenkins, UID 1000) y no puede escribir en el workspace del
+    // host (jenkins, UID 1100) -> java.nio.file.AccessDeniedException.
+    if (containerUser) {
+        base.user = containerUser
+    }
     def connector = new DockerComputerJNLPConnector()
     connector.jenkinsUrl = jenkinsUrl
-    if (containerUser) {
-        connector.user = containerUser
-    }
     def template = new DockerTemplate(base, connector, label, null)
     template.name = name
     template.remoteFs = workspace

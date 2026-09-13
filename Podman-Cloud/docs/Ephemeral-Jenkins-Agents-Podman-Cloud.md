@@ -414,14 +414,20 @@ sh '''
   - *Name*, *Labels*, *Enabled*.
   - *Docker Image* y *Pull strategy* (`Never pull` para imágenes locales).
   - *Remote File System Root* (`remoteFs`).
-  - *Connect method* (JNLP / SSH / attached) + *Jenkins URL* y *user*.
+  - *Connect method* (JNLP / SSH / attached) + *Jenkins URL*.
   - *Volumes* (campo `mounts`/`mountsString`) y *Volumes From*: **ojo**, el
     campo *Volumes* **no** usa la sintaxis `-v host:contenedor`; espera pares
     `key=value` separados por comas, una línea por mount:
     `type=bind,source=/datos/jenkins/pipelines-workspace,destination=/datos/jenkins/pipelines-workspace`
     o `type=volume,source=maven-cache,destination=/cache/.m2`.
-  - *Environment*, *User*, *Network*,
-    *Port bindings*, *Hostname*, *Privileged*, *Extra Hosts*, etc.
+  - *User* (**importante**), *Environment*, *Network*:
+    **el usuario del contenedor se fija aquí** (`user: 0`), en el
+    `DockerTemplateBase`. El campo `user` del conector JNLP es *legacy* y **no**
+    cambia el usuario con el que corre el contenedor; si lo pones solo ahí, el
+    agente arranca como el usuario por defecto de la imagen (`jenkins`, UID
+    1000) y no puede escribir en el workspace (UID 1100) →
+    `java.nio.file.AccessDeniedException`.
+  - *Port bindings*, *Hostname*, *Privileged*, *Extra Hosts*, etc.
   - *Instance Capacity* (contenedores por host), *Idle timeout*.
 
 ### 6.2 Por JCasC (Configuration as Code)
@@ -446,10 +452,10 @@ jenkins:
         connector:
           jnlp:
             jenkinsUrl: "http://192.168.122.30:8080/"
-            user: "0"
         dockerTemplateBase:
           image: "localhost/agent-maven-jdk17:latest"
           pullStrategy: "NEVER"
+          user: "0"
           # mountsString: pares key=value, una linea por mount (NO "-v host:dest")
           mountsString: "type=bind,source=/datos/jenkins/pipelines-workspace,destination=/datos/jenkins/pipelines-workspace\ntype=volume,source=maven-cache,destination=/cache/.m2"
           environment:
@@ -462,10 +468,10 @@ jenkins:
         connector:
           jnlp:
             jenkinsUrl: "http://192.168.122.30:8080/"
-            user: "0"
         dockerTemplateBase:
           image: "localhost/agent-node20:latest"
           pullStrategy: "NEVER"
+          user: "0"
           mountsString: "type=bind,source=/datos/jenkins/pipelines-workspace,destination=/datos/jenkins/pipelines-workspace\ntype=volume,source=npm-cache,destination=/cache/.npm"
           securityOptsString: "label=disable"
 
@@ -475,10 +481,10 @@ jenkins:
         connector:
           jnlp:
             jenkinsUrl: "http://192.168.122.30:8080/"
-            user: "0"
         dockerTemplateBase:
           image: "localhost/agent-podman:latest"
           pullStrategy: "NEVER"
+          user: "0"
           mountsString: "type=bind,source=/datos/jenkins/pipelines-workspace,destination=/datos/jenkins/pipelines-workspace\ntype=bind,source=/run/podman/podman.sock,destination=/run/podman/podman.sock"
           environment:
             - "CONTAINER_HOST=unix:///run/podman/podman.sock"
@@ -798,11 +804,15 @@ Diferencias con el pipeline de Podman-Host:
   y `type=volume,source=maven-cache,destination=/cache/.m2`. Es un error del
   propio `docker-plugin` (no de Podman).
 - **`java.nio.file.AccessDeniedException: …/workspace/<job>@tmp`** (o
-  `Permission denied` al escribir en el workspace): SELinux (enforcing) bloquea
-  el contenedor al escribir en el *bind mount* del host. El `docker-plugin` no
-  puede expresar `:z`, así que hay que poner `securityOpts = "label=disable"`
-  en **todas** las plantillas (no solo la de build). Comprueba con
-  `ausearch -m avc -ts recent` o `journalctl -t audit`.
+  `Permission denied` al escribir en el workspace). Dos causas típicas:
+  (1) **usuario del contenedor**: debe ser `user: 0` en el
+  **`DockerTemplateBase`** (campo *User* de la plantilla), **no** en el
+  conector JNLP (su campo `user` es legacy y no cambia el usuario del
+  contenedor). Si corre como `jenkins` (UID 1000) no puede escribir en el
+  workspace del host (UID 1100). Comprueba el campo *User* de la plantilla.
+  (2) **SELinux** (enforcing): el *bind mount* del workspace necesita
+  `securityOpts = "label=disable"` (el plugin no puede expresar `:z`).
+  Comprueba con `ausearch -m avc -ts recent` o `journalctl -t audit`.
 - **El workspace "desaparece" entre builds**: olvidaste montar el volumen del
   host (o `remoteFs` no apunta a la ruta montada).
 - **Cachés corruptas / builds concurrentes fallan**: mismo `maven-cache`

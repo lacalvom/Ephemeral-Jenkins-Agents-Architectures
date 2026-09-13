@@ -33,7 +33,12 @@ compartido y las cachés de otra forma.
 2. **Usuario de contenedor `user: 0` en las plantillas**: con el motor rootful
    (ADR-0001), el root del contenedor es root real del host, por lo que tiene
    permisos sobre el workspace (propiedad de `jenkins`/1100) y sobre las cachés
-   (named volumes) sin necesitar trucos de UID.
+   (named volumes) sin necesitar trucos de UID. El usuario se fija en el
+   **`DockerTemplateBase`** (campo *User* de la plantilla,
+   `containerConfig.withUser`), **no** en el `DockerComputerJNLPConnector`: el
+   `user` del conector es legacy y no afecta al contenedor. Si se pone solo en
+   el conector, el agente corre como el usuario por defecto de la imagen
+   (`jenkins`, UID 1000) y falla al escribir en el workspace (UID 1100).
 
 3. **`securityOpts = "label=disable"` en las TRES plantillas**: el workspace se
    monta como *bind* del host y, con SELinux en `enforcing`, el contenedor no

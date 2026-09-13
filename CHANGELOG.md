@@ -53,6 +53,16 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Correcciones (no breaking)
 
+- **Podman-Cloud: `AccessDeniedException` real por usuario del contenedor.** El
+  `user: 0` se estaba fijando en el `DockerComputerJNLPConnector` (campo
+  *legacy* que no afecta al contenedor); el usuario del contenedor debe ir en el
+  `DockerTemplateBase` (campo *User*). Como consecuencia, los agentes corrían
+  como `jenkins` (UID 1000) y no podían escribir en el workspace (UID 1100). Se
+  corrige `create-cloud.groovy` (`base.user = containerUser`) y el ejemplo
+  JCasC/guía (el `user` pasa de `connector.jnlp` a `dockerTemplateBase`). Nota:
+  el `label=disable` de las 3 plantillas sigue siendo necesario, pero no era la
+  causa de este error.
+
 - **Podman-Cloud: `AccessDeniedException` al escribir en el workspace.** Con
   SELinux en `enforcing`, el contenedor-agente no puede escribir en el
   *bind mount* del workspace si no se relabela; el `docker-plugin` no puede
