@@ -248,17 +248,31 @@ Este ejemplo consolida todas las reglas arquitectónicas y el uso de
 configuraciones centralizadas en un único pipeline funcional.
 
 > La versión **canónica y validada** de este pipeline reside en el
-> repositorio, en `Podman-Host/jenkins-config/jobs/reference-pipeline.groovy`.
-> El ejemplo de abajo es la referencia arquitectónica; en el laboratorio
-> **no hay registry interno**, por lo que el empaquetado solo etiqueta la
-> imagen localmente (`reference-backend:latest` /
-> `reference-frontend:latest`) en lugar de hacer `podman push`.
+> repositorio, en `Podman-Host/jenkins-config/jobs/reference-pipeline.groovy`
+> (idéntica a `samples/reference-pipeline-podman-host.groovy`). El ejemplo
+> que se muestra a continuación es la referencia arquitectónica; en el
+> laboratorio **no hay registry interno**, por lo que el empaquetado solo
+> etiqueta las imágenes localmente (`reference-backend:latest` /
+> `reference-frontend:latest`), **sin** `podman push`. Cada `sh` se protege
+> con `set -euo pipefail` y los builds se saltan si falta el `Dockerfile`
+> o el `pom.xml`/`package.json`.
 
 ```groovy
 pipeline {
     // Asignamos el host RHEL 9 de forma global para todo el pipeline
     agent {
         label 'podman-node'
+    }
+
+    options {
+        timestamps()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        disableConcurrentBuilds()
+        timeout(time: 30, unit: 'MINUTES')
+    }
+
+    environment {
+        EXECUTOR_NUMBER_TAG = "${env.EXECUTOR_NUMBER}"
     }
 
     stages {
@@ -274,8 +288,22 @@ pipeline {
                 }
             }
             steps {
-                configFileProvider([configFile(fileId: 'maven-settings-modern', variable: 'MAVEN_SETTINGS')]) {
-                    sh 'mvn -s $MAVEN_SETTINGS -Dmaven.repo.local=/cache/.m2/repository clean package'
+                configFileProvider([configFile(fileId: 'maven-settings-modern',
+                                                variable: 'MAVEN_SETTINGS')]) {
+                    sh '''
+                        set -euo pipefail
+                        mkdir -p /cache/.m2
+                        echo "Usando settings: $MAVEN_SETTINGS"
+                        if [ -f backend/pom.xml ]; then
+                            cd backend
+                            mvn -s "$MAVEN_SETTINGS" \
+                                -Dmaven.repo.local=/cache/.m2/repository \
+                                -B -ntp \
+                                clean package
+                        else
+                            echo "AVISO: backend/pom.xml no encontrado, saltando build"
+                        fi
+                    '''
                 }
             }
         }
@@ -289,12 +317,20 @@ pipeline {
                 }
             }
             steps {
-                configFileProvider([configFile(fileId: 'npmrc-frontend', variable: 'NPMRC_FILE')]) {
+                configFileProvider([configFile(fileId: 'npmrc-frontend',
+                                                variable: 'NPMRC_FILE')]) {
                     sh '''
-                    export NPM_CONFIG_USERCONFIG=$NPMRC_FILE
-                    npm config set cache /cache/.npm
-                    npm install
-                    npm run build
+                        set -euo pipefail
+                        mkdir -p /cache/.npm
+                        export NPM_CONFIG_USERCONFIG="$NPMRC_FILE"
+                        npm config set cache /cache/.npm
+                        if [ -f frontend/package.json ]; then
+                            cd frontend
+                            npm install
+                            npm run build
+                        else
+                            echo "AVISO: frontend/package.json no encontrado, saltando build"
+                        fi
                     '''
                 }
             }
@@ -308,15 +344,33 @@ pipeline {
                 docker {
                     image 'registry.access.redhat.com/ubi9/podman:latest'
                     reuseNode true
+                    // NO usar ":z"/":Z" en el socket de Podman: son para
+                    // "compartir contenido normal" y relabelan el fichero
+                    // hacia un contexto SELinux que la política no permite
+                    // para conectar vía unix_stream_socket (el socket real,
+                    // creado por el servicio podman.socket, ya tiene el
+                    // label correcto; relabelarlo lo rompe). La solución
+                    // documentada por Podman para "contenido de sistema" es
+                    // --security-opt label=disable. Ver ADR-011.
                     args "--userns=keep-id --security-opt label=disable -v /run/user/1100/podman/podman.sock:/run/podman/podman.sock"
                 }
             }
             steps {
                 sh '''
-                export CONTAINER_HOST=unix:///run/podman/podman.sock
-
-                podman build -t artifactory.mi-empresa.local/backend-app:${BUILD_NUMBER} -f backend/Dockerfile .
-                podman push artifactory.mi-empresa.local/backend-app:${BUILD_NUMBER}
+                    set -euo pipefail
+                    export CONTAINER_HOST=unix:///run/podman/podman.sock
+                    if [ -f backend/Dockerfile ]; then
+                        podman build --format docker \
+                                     -t artifactory.mi-empresa.local/backend-app:${BUILD_NUMBER} \
+                                     -f backend/Dockerfile .
+                        # Tag adicional estable (sin número de build) para que
+                        # podman-compose.yml (pruebas manuales) siempre
+                        # encuentre la última imagen generada sin editarlo.
+                        podman tag artifactory.mi-empresa.local/backend-app:${BUILD_NUMBER} \
+                                   reference-backend:latest
+                    else
+                        echo "AVISO: backend/Dockerfile no encontrado, saltando build"
+                    fi
                 '''
             }
         }
@@ -326,17 +380,39 @@ pipeline {
                 docker {
                     image 'registry.access.redhat.com/ubi9/podman:latest'
                     reuseNode true
+                    // Ver comentario equivalente en el stage del backend (ADR-011).
                     args "--userns=keep-id --security-opt label=disable -v /run/user/1100/podman/podman.sock:/run/podman/podman.sock"
                 }
             }
             steps {
                 sh '''
-                export CONTAINER_HOST=unix:///run/podman/podman.sock
-
-                podman build -t artifactory.mi-empresa.local/frontend-app:${BUILD_NUMBER} -f frontend/Dockerfile .
-                podman push artifactory.mi-empresa.local/frontend-app:${BUILD_NUMBER}
+                    set -euo pipefail
+                    export CONTAINER_HOST=unix:///run/podman/podman.sock
+                    if [ -f frontend/Dockerfile ]; then
+                        podman build --format docker \
+                                     -t artifactory.mi-empresa.local/frontend-app:${BUILD_NUMBER} \
+                                     -f frontend/Dockerfile .
+                        # Ver comentario equivalente en el stage del backend.
+                        podman tag artifactory.mi-empresa.local/frontend-app:${BUILD_NUMBER} \
+                                   reference-frontend:latest
+                    else
+                        echo "AVISO: frontend/Dockerfile no encontrado, saltando build"
+                    fi
                 '''
             }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline completado correctamente en build #${env.BUILD_NUMBER}"
+        }
+        failure {
+            echo "Pipeline FALLO en build #${env.BUILD_NUMBER}. Revisa los logs."
+        }
+        always {
+            // Limpieza explícita (workaround para ws-cleanup plugin opcional)
+            sh 'podman system prune -f || true'
         }
     }
 }
