@@ -89,15 +89,20 @@ def makeTemplate = { String name, String label, String image, String mounts, Str
 // host:contenedor": espera pares key=value separados por comas, una linea
 // por mount (type=bind|volume,source=...,destination=...). Pasar la
 // sintaxis "-v" da "Invalid mount: expected key=value comma separated".
+//
+// SELinux: el workspace es un bind del host y, con SELinux en enforcing,
+// el contenedor no puede escribir en el salvo que se relabele. El plugin
+// no puede expresar ":z", por eso las TRES plantillas llevan
+// securityOptsString="label=disable".
 def templates = [
     makeTemplate(
         "agent-maven-jdk17", "maven-jdk17", "localhost/agent-maven-jdk17:latest",
         "type=bind,source=${workspace},destination=${workspace}\ntype=volume,source=maven-cache,destination=/cache/.m2",
-        "MAVEN_OPTS=-Dmaven.repo.local=/cache/.m2/repository", ""),
+        "MAVEN_OPTS=-Dmaven.repo.local=/cache/.m2/repository", "label=disable"),
     makeTemplate(
         "agent-node20", "node20", "localhost/agent-node20:latest",
         "type=bind,source=${workspace},destination=${workspace}\ntype=volume,source=npm-cache,destination=/cache/.npm",
-        "", ""),
+        "", "label=disable"),
     makeTemplate(
         "agent-podman", "podman-build", "localhost/agent-podman:latest",
         "type=bind,source=${workspace},destination=${workspace}\ntype=bind,source=${podmanSocket},destination=/run/podman/podman.sock",

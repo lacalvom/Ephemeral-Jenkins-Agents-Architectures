@@ -35,6 +35,13 @@ compartido y las cachés de otra forma.
    permisos sobre el workspace (propiedad de `jenkins`/1100) y sobre las cachés
    (named volumes) sin necesitar trucos de UID.
 
+3. **`securityOpts = "label=disable"` en las TRES plantillas**: el workspace se
+   monta como *bind* del host y, con SELinux en `enforcing`, el contenedor no
+   puede escribir en él salvo que se relabele. El `docker-plugin` no puede
+   expresar `:z`, por lo que se desactiva SELinux para el contenedor. Aplica
+   también a las plantillas que no montan el socket; si no, el primer build
+   falla con `java.nio.file.AccessDeniedException` sobre `<workspace>/<job>@tmp`.
+
 ## Consecuencias
 
 ### Positivas
@@ -50,13 +57,17 @@ compartido y las cachés de otra forma.
 
 - Las imágenes pesan más (llevan JDK + agente + toolchain) y hay que mantenerlas
   (una por toolchain).
-- Correr como `user: 0` reduce el aislamiento dentro del contenedor (coherente
-  con la decisión rootful del ADR-0001).
+- Correr como `user: 0` y con `label=disable` reduce el aislamiento dentro del
+  contenedor (coherente con la decisión rootful del ADR-0001). Alternativa más
+  limpia: políticas SELinux con `container_file_t` en el workspace, fuera del
+  alcance del laboratorio.
 
 ### Neutras / trade-offs
 
 - Node se instala desde NodeSource porque da una versión 20 controlada
   (los repos base pueden traer una más antigua).
+- `label=disable` es un parche pragmático al no poder expresar `:z` desde el
+  `docker-plugin`; en el lab Podman-Host se usa el mismo enfoque (ADR-011).
 
 ## Alternativas consideradas
 

@@ -36,6 +36,11 @@ bajo demanda**, seleccionables por *label*. No hace falta un nodo permanente.
    `Invalid mount: expected key=value comma separated…`.
 
    El pipeline solo usa `agent { label '...' }`.
+
+   Con SELinux en `enforcing`, todas las plantillas llevan además
+   `securityOpts = "label=disable"`: el workspace es un *bind* del host y el
+   plugin no puede expresar `:z`; sin esto, el contenedor no puede escribir en
+   `<workspace>/<job>@tmp` (`java.nio.file.AccessDeniedException`).
 3. **El código de la app lo copia Ansible** al workspace del job en el
    podman-host (no se usa SCM), igual que en Podman-Host.
 

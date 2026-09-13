@@ -305,6 +305,14 @@ Podman del host** dentro:
 En Podman-Cloud esto se pone en la **plantilla**, no en el pipeline. Además
 puedes activar **"Expose DOCKER_HOST"** en la Cloud.
 
+> **SELinux y bind mounts:** el workspace se monta como *bind* del host. Con
+> SELinux en `enforcing` (como en AlmaLinux 9), el contenedor **no puede
+> escribir** en él salvo que se relabele; el `docker-plugin` no puede expresar
+> `:z`, así que **todas las plantillas** (no solo la de build) llevan
+> `securityOpts = "label=disable"`. Sin esto, el primer build falla con
+> `java.nio.file.AccessDeniedException: …/workspace/<job>@tmp`. Ver ADR-011 del
+> lab Podman-Host y el troubleshooting.
+
 La imagen `agent-podman` de este laboratorio añade, además de Podman, las
 herramientas **`kubectl`, `kubectx` y `kubens`** para operar contra clústeres
 Kubernetes desde el pipeline. El **kubeconfig no se hornea** en la imagen: se
@@ -446,6 +454,7 @@ jenkins:
           mountsString: "type=bind,source=/datos/jenkins/pipelines-workspace,destination=/datos/jenkins/pipelines-workspace\ntype=volume,source=maven-cache,destination=/cache/.m2"
           environment:
             - "MAVEN_OPTS=-Dmaven.repo.local=/cache/.m2/repository"
+          securityOptsString: "label=disable"
 
       - name: "node20"
         labelString: "node node20"
@@ -458,6 +467,7 @@ jenkins:
           image: "localhost/agent-node20:latest"
           pullStrategy: "NEVER"
           mountsString: "type=bind,source=/datos/jenkins/pipelines-workspace,destination=/datos/jenkins/pipelines-workspace\ntype=volume,source=npm-cache,destination=/cache/.npm"
+          securityOptsString: "label=disable"
 
       - name: "podman-build"
         labelString: "podman-build"
@@ -472,13 +482,14 @@ jenkins:
           mountsString: "type=bind,source=/datos/jenkins/pipelines-workspace,destination=/datos/jenkins/pipelines-workspace\ntype=bind,source=/run/podman/podman.sock,destination=/run/podman/podman.sock"
           environment:
             - "CONTAINER_HOST=unix:///run/podman/podman.sock"
+          securityOptsString: "label=disable"
 ```
 
 > Los nombres exactos de los campos JCasC (`pullStrategy`, `environment`,
-> `mountsString`, `dockerTemplateBase`, etc.) **pueden variar según la versión**
-> del plugin. La forma fiable de obtenerlos es configurar la Cloud por UI y
-> usar **"Export configuration as code"** (plugin `configuration-as-code`) o
-> el *script console* con un `export`.
+> `mountsString`, `securityOptsString`, `dockerTemplateBase`, etc.) **pueden
+> variar según la versión** del plugin. La forma fiable de obtenerlos es
+> configurar la Cloud por UI y usar **"Export configuration as code"** (plugin
+> `configuration-as-code`) o el *script console* con un `export`.
 
 ---
 
@@ -786,6 +797,12 @@ Diferencias con el pipeline de Podman-Host:
   `type=bind,source=/datos/jenkins/pipelines-workspace,destination=/datos/jenkins/pipelines-workspace`
   y `type=volume,source=maven-cache,destination=/cache/.m2`. Es un error del
   propio `docker-plugin` (no de Podman).
+- **`java.nio.file.AccessDeniedException: …/workspace/<job>@tmp`** (o
+  `Permission denied` al escribir en el workspace): SELinux (enforcing) bloquea
+  el contenedor al escribir en el *bind mount* del host. El `docker-plugin` no
+  puede expresar `:z`, así que hay que poner `securityOpts = "label=disable"`
+  en **todas** las plantillas (no solo la de build). Comprueba con
+  `ausearch -m avc -ts recent` o `journalctl -t audit`.
 - **El workspace "desaparece" entre builds**: olvidaste montar el volumen del
   host (o `remoteFs` no apunta a la ruta montada).
 - **Cachés corruptas / builds concurrentes fallan**: mismo `maven-cache`

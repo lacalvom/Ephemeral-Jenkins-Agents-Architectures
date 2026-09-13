@@ -53,6 +53,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Correcciones (no breaking)
 
+- **Podman-Cloud: `AccessDeniedException` al escribir en el workspace.** Con
+  SELinux en `enforcing`, el contenedor-agente no puede escribir en el
+  *bind mount* del workspace si no se relabela; el `docker-plugin` no puede
+  expresar `:z`. Solo la plantilla `podman-build` tenía `label=disable`; ahora
+  lo llevan las **tres** (`maven-jdk17`, `node20`, `podman-build`) en
+  `create-cloud.groovy` y `vars.yml`. Documentado en la guía (5.2,
+  troubleshooting), ADR-0002 y ADR-0004.
+
 - **Podman-Cloud: `ansible-playbook site.yml` directo fallaba por falta de
   `jenkins_admin_password`.** El secreto solo lo exportaba `deploy.sh`, así que
   reejecutar solo el playbook (para aplicar cambios de `init.groovy.d`) abortaba

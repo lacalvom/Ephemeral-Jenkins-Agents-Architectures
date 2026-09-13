@@ -128,6 +128,10 @@ podman_tls_server_dns: "{{ groups['podman_hosts'][0] }}"
 # Plantillas de agente (una por imagen/toolchain). Los campos mounts/env/
 # security_opts se pasan al DockerTemplateBase (mountsString /
 # environmentsString / securityOptsString).
+#
+# SELinux: el workspace se monta como bind del host y SELinux (enforcing)
+# impide al contenedor escribir en el si no se relabela. El plugin no puede
+# expresar ":z", asi que todas las plantillas llevan "label=disable".
 podman_cloud_templates:
   - name: "agent-maven-jdk17"
     label: "maven-jdk17"
@@ -139,14 +143,14 @@ podman_cloud_templates:
     # linea por mount (type=bind|volume,source=...,destination=...).
     mounts: "type=bind,source={{ jenkins_workspace_dir }},destination={{ jenkins_workspace_dir }}\ntype=volume,source=maven-cache,destination=/cache/.m2"
     env: "MAVEN_OPTS=-Dmaven.repo.local=/cache/.m2/repository"
-    security_opts: ""
+    security_opts: "label=disable"
   - name: "agent-node20"
     label: "node20"
     image: "localhost/agent-node20:latest"
     remote_fs: "{{ jenkins_workspace_dir }}"
     mounts: "type=bind,source={{ jenkins_workspace_dir }},destination={{ jenkins_workspace_dir }}\ntype=volume,source=npm-cache,destination=/cache/.npm"
     env: ""
-    security_opts: ""
+    security_opts: "label=disable"
   - name: "agent-podman"
     label: "podman-build"
     image: "localhost/agent-podman:latest"
