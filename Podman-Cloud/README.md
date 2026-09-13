@@ -45,6 +45,17 @@ cp .env.example .env         # define VM_PASSWORD y JENKINS_ADMIN_PASSWORD
 ./deploy.sh                  # VMs + ansible-playbook site.yml (5 fases)
 ```
 
+> **Reejecutar solo el provisionamiento (sin recrear VMs):** si ya tienes las
+> VMs y solo quieres aplicar cambios de configuración (Cloud, pipeline,
+> `init.groovy.d`…), **no** uses `./deploy.sh` (destruye y recrea las VMs).
+> Ejecuta el playbook directamente; Ansible lee el `.env` del lab:
+>
+> ```bash
+> cd ansible && ansible-playbook site.yml
+> ```
+>
+> Jenkins se reinicia automáticamente si cambian los scripts `init.groovy.d/`.
+
 IPs (distintas de Podman-Host para poder coexistir):
 `jenkins-controller-cloud` = `192.168.122.30`,
 `podman-cloud-host` = `192.168.122.31`.

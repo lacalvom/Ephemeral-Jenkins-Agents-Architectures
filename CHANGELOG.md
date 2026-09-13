@@ -53,6 +53,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Correcciones (no breaking)
 
+- **Podman-Cloud: `ansible-playbook site.yml` directo fallaba por falta de
+  `jenkins_admin_password`.** El secreto solo lo exportaba `deploy.sh`, así que
+  reejecutar solo el playbook (para aplicar cambios de `init.groovy.d`) abortaba
+  en el `assert`. Ahora Ansible lee `JENKINS_ADMIN_PASSWORD` del `.env` del lab
+  por sí mismo (orden: variable de entorno → `.env` → `vault.yml`).
+
 - **Podman-Cloud: sintaxis de los mounts de las plantillas de agente.** El
   campo `mounts`/`mountsString` del `docker-plugin` no usa la sintaxis
   `-v host:contenedor` sino pares `key=value` separados por comas

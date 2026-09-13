@@ -21,7 +21,8 @@
       (1) copia el fichero de plantilla y editalo:
           cp ansible/group_vars/all/vault.yml.example ansible/group_vars/all/vault.yml
       (2) o define JENKINS_ADMIN_PASSWORD en el .env de la raiz
-          (copia de .env.example; deploy.sh la exporta automaticamente).
+          (copia de .env.example). El playbook lo lee directamente; deploy.sh
+          ademas la exporta como variable de entorno.
     quiet: true
 
 - name: "jenkins_controller | Instalar Java {{ java_version }} y python3-bcrypt"

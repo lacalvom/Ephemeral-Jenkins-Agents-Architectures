@@ -36,9 +36,18 @@ java_package_openjdk_headless: "java-{{ java_version }}-openjdk-headless"
 jenkins_version: "2.568.3"
 jenkins_admin_user: "admin"
 # Password del admin de Jenkins. NO hay valor por defecto en el repositorio.
-# Se define en ansible/group_vars/all/vault.yml o en JENKINS_ADMIN_PASSWORD
-# del .env (deploy.sh la exporta). Si falta, el playbook falla.
-jenkins_admin_password: "{{ lookup('env', 'JENKINS_ADMIN_PASSWORD') | default('', true) }}"
+# Se resuelve, por este orden:
+#   1) variable de entorno JENKINS_ADMIN_PASSWORD (deploy.sh la exporta),
+#   2) JENKINS_ADMIN_PASSWORD del fichero .env del lab (asi
+#      "ansible-playbook site.yml" funciona sin pasar por deploy.sh),
+#   3) group_vars/all/vault.yml (se carga despues de vars.yml y tiene prioridad).
+# Si no hay ninguna, el playbook falla con un mensaje claro.
+_jenkins_env_file: "{{ playbook_dir | dirname }}/.env"
+_jenkins_env_password: >-
+  {{ lookup('ini', 'JENKINS_ADMIN_PASSWORD type=properties file=' ~ _jenkins_env_file, errors='ignore') }}
+jenkins_admin_password: >-
+  {{ lookup('env', 'JENKINS_ADMIN_PASSWORD') | default('', true)
+     | default(_jenkins_env_password, true) | default('', true) }}
 jenkins_http_port: 8080
 # Los agentes Cloud conectan por JNLP; se habilita el puerto 50000 en el
 # controller (ver ADR-008 del lab Podman-Host).
