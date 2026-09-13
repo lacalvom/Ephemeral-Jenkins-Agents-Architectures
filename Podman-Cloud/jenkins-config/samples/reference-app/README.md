@@ -1,13 +1,13 @@
 # reference-app — Aplicación de ejemplo para el pipeline de referencia
 
 Backend (Java 17 + Spring Boot 3 + Maven) y frontend (Angular 20 + npm)
-mínimos pero **funcionales**, usados exclusivamente para probar el
+mínimos pero **funcionales**, empleados exclusivamente para probar el
 `reference-pipeline` del laboratorio `Podman-Cloud`.
 
-No usan base de datos ni SCM: Ansible copia este directorio
+No se utiliza base de datos ni SCM: Ansible copia este directorio
 directamente al workspace del agente en cada `deploy.sh` (ver
 `ansible/roles/podman_host/tasks/main.yml`), y el pipeline los
-compila/empaqueta usando agentes efímeros de Podman.
+compila y empaqueta mediante agentes efímeros de Podman.
 
 ## Estructura
 
@@ -25,9 +25,9 @@ reference-app/
 └── podman-compose.yml   # entorno de prueba manual (NO lo usa el pipeline)
 ```
 
-## Cómo se relaciona con el pipeline
+## Relación con el pipeline
 
-El `reference-pipeline` (Jenkins) hace, en este orden:
+El `reference-pipeline` (Jenkins) ejecuta, en este orden:
 
 1. **Construcción Backend**: `mvn clean package` dentro del agente
    `agent-maven-jdk17` → genera `backend/target/reference-backend.jar`.
@@ -39,18 +39,17 @@ El `reference-pipeline` (Jenkins) hace, en este orden:
 4. **Empaquetar Imagen Frontend**: `podman build -f frontend/Dockerfile .`
    → imagen `reference-frontend:latest`.
 
-Los `Dockerfile` de este directorio **no compilan nada**: solo copian
-los artefactos ya generados en los stages 1 y 2. Por eso, si quieres
-reconstruir las imágenes manualmente fuera de Jenkins, tienes que
-compilar primero (ver más abajo).
+Los `Dockerfile` de este directorio **no compilan nada**: solo copian los
+artefactos generados en los stages 1 y 2. Por ello, para reconstruir las
+imágenes manualmente fuera de Jenkins se compila primero (ver más abajo).
 
-## Probarlo manualmente (sin Jenkins)
+## Prueba manual (sin Jenkins)
 
 ### 1. Compilar el backend
 
-El `pom.xml` activa `maven-toolchains-plugin` (JDK 17), así que hay que
-pasarle un `toolchains.xml`. La forma más simple es usar la propia
-imagen-agente, que ya lo trae en `/opt/toolchains/toolchains.xml`:
+El `pom.xml` activa `maven-toolchains-plugin` (JDK 17), por lo que se le debe
+proporcionar un `toolchains.xml`. La opción más sencilla es utilizar la
+imagen-agente, que ya lo incluye en `/opt/toolchains/toolchains.xml`:
 
 ```bash
 cd backend
@@ -62,10 +61,10 @@ podman run --rm -v "$(pwd)":/build:z -w /build --user 0 \
 Esto genera `backend/target/reference-backend.jar` y ejecuta los tests
 (`HelloControllerTest`).
 
-> Si compilas con una imagen JDK 17 "pelada" (p. ej. `ubi9/openjdk-17`)
-> tendrás que aportar tu propio `toolchains.xml` con `mvn -t ...`; en caso
-> contrario el build falla con `Cannot find matching toolchain definitions`
-> (ver ADR-0006).
+> Si la compilación se realiza con una imagen JDK 17 "pelada" (p. ej.
+> `ubi9/openjdk-17`), se debe aportar un `toolchains.xml` propio y
+> proporcionarlo con `mvn -t ...`; en caso contrario el build falla con
+> `Cannot find matching toolchain definitions` (ver ADR-0006).
 
 ### 2. Compilar el frontend
 
@@ -80,19 +79,19 @@ Esto genera `frontend/dist/reference-frontend/browser/`.
 
 ### 3. Construir las imágenes
 
-Desde la raíz de `reference-app/` (el contexto de build es esta
-carpeta, no `backend/` ni `frontend/`):
+Desde la raíz de `reference-app/` (el contexto de build es esta carpeta,
+no `backend/` ni `frontend/`):
 
 ```bash
 podman build --format docker -t reference-backend:latest  -f backend/Dockerfile  .
 podman build --format docker -t reference-frontend:latest -f frontend/Dockerfile .
 ```
 
-`--format docker` es necesario para que el `HEALTHCHECK` de cada
-`Dockerfile` quede embebido en la imagen (Podman usa formato OCI por
-defecto, que lo ignora).
+`--format docker` es necesario para que el `HEALTHCHECK` de cada `Dockerfile`
+quede embebido en la imagen (Podman usa formato OCI por defecto, que lo
+ignora).
 
-### 4. Levantar el entorno completo con podman-compose
+### 4. Levantar el entorno completo con `podman-compose`
 
 ```bash
 podman compose -f podman-compose.yml up -d
@@ -103,22 +102,22 @@ podman compose -f podman-compose.yml down
 
 El frontend llama al backend **desde el navegador del usuario**, en
 `http://localhost:8080` (ver `frontend/src/app/hello.service.ts`). Por
-eso el `podman-compose.yml` publica el puerto 8080 del backend en el
-host: sin esa publicación, la llamada del navegador fallaría aunque
-los contenedores estén corriendo.
+ello, el `podman-compose.yml` publica el puerto 8080 del backend en el
+host: sin esa publicación, la llamada del navegador fallaría aunque los
+contenedores estuvieran en ejecución.
 
 ## Notas de diseño
 
-- **Sin base de datos**: el backend responde con datos en memoria; el
+- **Sin base de datos:** el backend responde con datos en memoria; el
   objetivo es validar el pipeline, no representar una arquitectura de
   referencia productiva.
-- **URL del backend fija a `localhost:8080`**: es una decisión
-  deliberada para simplificar las pruebas manuales. Si en el futuro se
-  quiere desplegar detrás de un dominio real, hay que parametrizar
-  `hello.service.ts` (por ejemplo con un fichero de entorno de Angular).
-- **Tag `artifactory.mi-empresa.local/...`**: lo genera el pipeline
-  imitando el nombre de un registry interno real (para que quede claro
-  dónde se haría el `podman push` en un entorno de producción). Además,
+- **URL del backend fija a `localhost:8080`:** es una decisión
+  deliberada para simplificar las pruebas manuales. Para desplegar detrás
+  de un dominio real, se parametriza `hello.service.ts` (por ejemplo
+  mediante un fichero de entorno de Angular).
+- **Tag `artifactory.mi-empresa.local/...`:** lo genera el pipeline como
+  imitación del nombre de un registro interno real (para evidenciar
+  dónde se realizaría `podman push` en un entorno de producción). Además,
   el pipeline crea un segundo tag `reference-backend:latest` /
   `reference-frontend:latest` sin ese prefijo, que es el que consume
   `podman-compose.yml` para no depender del número de build.

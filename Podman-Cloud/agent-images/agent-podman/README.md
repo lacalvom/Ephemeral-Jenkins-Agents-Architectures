@@ -16,17 +16,19 @@ Imagen-agente **híbrida** para el modelo Podman-Cloud, orientada a
 
 ## Podman-out-of-Podman
 
-El contenedor no corre su propio motor: el `podman` de dentro usa el del host
-mediante el socket rootful montado por la plantilla. Así el `podman build` del
-pipeline construye la imagen en el almacén del host (`reference-backend:latest`,
-`reference-frontend:latest`) y queda disponible para `podman compose`.
+El contenedor no ejecuta su propio motor: el `podman` de dentro usa el del
+host mediante el socket rootful montado por la plantilla. Así, el
+`podman build` del pipeline construye la imagen en el almacén del host
+(`reference-backend:latest`, `reference-frontend:latest`) y queda disponible
+para `podman compose`.
 
 ## Kubernetes (kubeconfig)
 
-Las herramientas de Kubernetes (kubectl/kubectx/kubens) **no** llevan ningún
-kubeconfig dentro: la configuración se **inyecta en tiempo de ejecución** en el
-pipeline con `configFileProvider(...)` (buena práctica: no hornear credenciales
-en la imagen). Ver `reference-pipeline.groovy`, stage de empaquetado.
+Las herramientas de Kubernetes (kubectl, kubectx y kubens) **no** incluyen
+ningún kubeconfig en la imagen: la configuración se **inyecta en tiempo de
+ejecución** en el pipeline con `configFileProvider(...)` (buena práctica:
+no hornear credenciales en la imagen). Ver `reference-pipeline.groovy`,
+stage de empaquetado.
 
 ## Construir
 
@@ -35,7 +37,8 @@ podman build --format docker -t localhost/agent-podman:latest \
   Podman-Cloud/agent-images/agent-podman/
 ```
 
-En el laboratorio la construye automáticamente el rol `podman_host` (Ansible).
+En el laboratorio la construye automáticamente el rol `podman_host`
+(Ansible).
 
 ## Uso
 

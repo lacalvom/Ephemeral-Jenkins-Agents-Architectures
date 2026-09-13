@@ -3,14 +3,15 @@
 Documentación **general** (compara los tres modelos y los reúne). La guía
 específica de **cada modelo vive dentro de su laboratorio** (`<lab>/docs/`).
 
-## En esta carpeta (raíz `guides/`)
+## Contenido de esta carpeta (`guides/`)
 
 1. **[Ephemeral-jenkins-Agents-Architectures-Compartive-guide.md](./Ephemeral-jenkins-Agents-Architectures-Compartive-guide.md)**
-   — Comparativa de los tres modelos. **Empieza aquí.**
+   — Comparativa de los tres modelos. Punto de partida recomendado.
 2. **[Ephemeral-jenkins-agents-Architectures-models-complete-guide.md](./Ephemeral-jenkins-agents-Architectures-models-complete-guide.md)**
-   — **Documento unificado** (todo en uno). Úsalo como referencia/consulta.
+   — Documento unificado, con todo en un solo lugar. Pensado como referencia
+   de consulta.
 
-## Guías por modelo (en cada laboratorio)
+## Guías por modelo
 
 | Modelo | Guía |
 |---|---|
@@ -27,7 +28,7 @@ Los *Architecture Decision Records* del laboratorio implementado están en
 
 Los documentos de las guías se distribuyen bajo la licencia
 [Creative Commons Atribución 4.0 Internacional (CC BY 4.0)](./LICENSE).
-El código del repositorio usa por separado la licencia
+El código del repositorio se distribuye por separado bajo licencia
 Apache 2.0 ([`LICENSE`](../LICENSE)).
 
 "Cloudsdoers" y su logotipo son marcas de Cloudsdoers (https://cloudsdoers.com).
