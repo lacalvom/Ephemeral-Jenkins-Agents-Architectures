@@ -312,7 +312,7 @@ También puede activarse **"Expose DOCKER_HOST"** en la Cloud.
 La imagen `agent-podman` añade, además de Podman, las herramientas `kubectl`,
 `kubectx` y `kubens` para operar contra clústeres Kubernetes desde el pipeline.
 El kubeconfig no se incorpora a la imagen: se inyecta en tiempo de build con un
-*Managed Config File* (ver sección 10).
+*Managed Config File* (ver sección 11).
 
 ### 5.3 JDK del agente frente a JDK de compilación (Maven Toolchains)
 
@@ -664,7 +664,113 @@ independiente y deliberado.
 
 ---
 
-## 9. Selección del agente efímero
+## 9. Podman Secrets
+
+El laboratorio incorpora **Podman Secrets** para distribuir credenciales y
+material sensible (tokens, *kubeconfig*, certificados) a los contenedores
+efímeros **sin que el valor aparezca en el pipeline, en la imagen del
+agente ni en los logs**. Es el equivalente nativo de Kubernetes Secrets y de
+los Jenkins Credentials Store para credenciales consumidas por el motor de
+contenedores.
+
+### 9.1 Dónde residen
+
+Los secretos se crean en el **store rootful de Podman del `podman-cloud-host`**
+(en `/var/lib/containers/storage/secrets/...` para el driver `file`, y
+ubicaciones análogas para los drivers `pass` y `shell`). El agente
+`podman-build` los ve porque monta el socket rootful
+`/run/podman/podman.sock` (plantilla `podman-build`, sección 5.2). Decisión
+del ADR-001: la API y el motor son rootful para que los secretos residan en
+el store de sistema y sean visibles por el plugin `docker-plugin`.
+
+La gestión la realiza el rol `podman_secrets_tooling` (Fase 5 de
+`site.yml`). Por defecto crea tres secrets de ejemplo, uno por cada driver
+configurado:
+
+| Driver    | Secret de ejemplo           | Almacenamiento                                                                                  |
+|-----------|------------------------------|---------------------------------------------------------------------------------------------------|
+| `file`    | `api_token_prod_file`        | Texto plano en `/var/lib/containers/storage/secrets/` (sin cifrado)                              |
+| `pass`    | `api_token_prod_pass`        | Cifrado con GPG (sin passphrase) en `/root/.password-store/`                                    |
+| `shell`   | `api_token_prod_shell`       | Cifrado con `sops`+`age` en `/root/.config/podman-secrets-shell-store/` (descifrado al vuelo)    |
+
+El valor de ejemplo para los tres es el mismo (`example_secret_value: "valor-de-ejemplo"`
+en `ansible/roles/podman_secrets_tooling/defaults/main.yml`) y **no** representa
+credenciales reales: solo existe para validar el flujo.
+
+### 9.2 Drivers disponibles
+
+| Driver   | Cifrado en reposo | Requiere preparación                                                                                       | Caso de uso típico                                       |
+|----------|-------------------|------------------------------------------------------------------------------------------------------------|---------------------------------------------------------|
+| `file`   | No (texto plano)  | Ninguna                                                                                                    | Entornos aislados con control de acceso estricto al host |
+| `pass`   | Sí (GPG)          | El rol genera una clave GPG sin passphrase si no existe                                                     | Auditorías, Zero Trust con tooling GPG clásico           |
+| `shell`  | Sí (`age`)        | El rol genera una clave `age` y despliega un script propio (`podman-secret-sops-driver.sh`) que implementa las 4 acciones que exige Podman (`lookup`/`store`/`list`/`delete`) | El más avanzado; el valor nunca se almacena, se descifra bajo demanda |
+
+`shell` sustituye al antiguo `crypta` (ADR-015), incompatible con la glibc de
+AlmaLinux 9.
+
+### 9.3 Cómo se consumen desde el pipeline
+
+El agente `podman-build` ve los secretos del store rootful a través del
+socket. El patrón recomendado es **dejar que el motor los monte como
+ficheros**, sin pasarlos por línea de comandos:
+
+```groovy
+stage('Consumir un Podman Secret') {
+    agent { label 'podman-build' }
+    steps {
+        sh '''
+            set -euo pipefail
+            podman run --rm \
+                --secret api_token_prod_file \
+                docker.io/library/alpine:3.20 \
+                sh -c 'cat /run/secrets/api_token_prod_file'
+        '''
+    }
+}
+```
+
+Variantes habituales:
+
+- **`type=env,target=API_TOKEN`** inyecta el valor como variable de entorno
+  dentro del contenedor.
+- **`type=mount,target=/run/secrets/api_token`** lo monta como fichero
+  (forma por defecto si no se especifica `type`).
+- Para **`podman build`**, se usa `--secret` con un `--mount=type=secret,...`
+  en la línea del `RUN` del Dockerfile, o con
+  `--secret id=src,dst=/run/secrets/file` directamente en CLI.
+
+En el pipeline de referencia del laboratorio (sección 11), la **Fase 5
+"Secrets y Kubernetes"** itera sobre los tres secrets de ejemplo y los
+consume con `podman run --secret`. El valor se imprime desde
+`/run/secrets/<nombre>` dentro de un contenedor `alpine`. Esta fase
+demuestra además la inyección de un *kubeconfig* mediante Config File
+Provider (no se hornea en la imagen).
+
+### 9.4 Buenas prácticas y consideraciones operativas
+
+- **Nunca pasar el valor por argumentos** del pipeline, ni como variable de
+  entorno de Jenkins, ni como parámetro en `args`. El motor lo monta
+  directamente en `/run/secrets/<nombre>` y lo destruye de memoria al
+  terminar el contenedor.
+- **Secretos reales fuera del repositorio.** Los nombres de ejemplo
+  (`api_token_prod_*`) existen para validar el flujo; las credenciales de
+  producción se crean a mano (`podman secret create ...`) o mediante una
+  tarea Ansible adicional en `podman_secrets_tooling/tasks/main.yml` que
+  no se versiona.
+- **No compartir `podman system prune -a`** sobre el `podman-cloud-host`
+  con un agente `podman-build` en ejecución: podría borrar imágenes
+  referenciadas. Limitar la purga a imágenes *dangling*
+  (`podman image prune -f`).
+- **Rotación.** Para regenerar los secrets de ejemplo, basta con ejecutar
+  `ansible-playbook site.yml` (las tareas son idempotentes y usan
+  `skip_existing` para los `podman_secret`). Para rotar credenciales
+  reales, se elimina y vuelve a crear el secret con el nuevo valor.
+- **Visibilidad.** `podman secret ls` lista los secretos del store y su
+  driver. La Fase 5 del pipeline lo muestra en el log del stage.
+
+---
+
+## 10. Selección del agente efímero
 
 - Cada plantilla declara uno o varios **labels**
   (`labelString: "maven maven-jdk17"`).
@@ -684,113 +790,235 @@ stage('Imagen')    { agent { label 'podman-build' }   ; steps { sh 'podman build
 
 ---
 
-## 10. Pipeline de referencia
+## 11. Pipeline de referencia
 
-El pipeline de referencia del laboratorio (`jenkins-config/jobs/reference-pipeline.groovy`)
-reproduce un flujo completo de compilación y empaquetado, con un agente distinto
-por stage:
+El pipeline de referencia del laboratorio reside en
+`Podman-Cloud/jenkins-config/jobs/reference-pipeline.groovy` (idéntico a
+`samples/reference-pipeline-podman-cloud.groovy`) y reproduce un flujo
+completo de compilación y empaquetado, con un agente distinto por stage. La
+versión que se muestra a continuación coincide con la implementación canónica
+del repositorio.
 
 ```groovy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2026 Cloudsdoers
+// =====================================================================
+// reference-pipeline.groovy — Pipeline del laboratorio Podman-Cloud
+// =====================================================================
+// Modelo "Cloud" (plugin docker-plugin): NO se usa "agent { docker }".
+// Cada stage elige un label y el plugin aprovisiona un contenedor-agente
+// a partir de la plantilla correspondiente (maven-jdk17 / node20 /
+// podman-build) y lo destruye al terminar.
+//
+// El workspace y las caches los define la PLANTILLA (ver
+// create-cloud.groovy), no el pipeline: el workspace esta compartido en
+// /datos/jenkins/pipelines-workspace y las caches son named volumes
+// montados en /cache/.m2 y /cache/.npm.
+//
+// El codigo (backend/, frontend/) lo copia Ansible al workspace del job
+// (no se usa SCM). Ver jenkins-config/samples/reference-app/.
+// =====================================================================
+
 pipeline {
-    agent none   // cada stage elige su plantilla por label
+    // Sin agente global: cada stage elige su plantilla por label.
+    agent none
 
     options {
         timestamps()
-        disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '10'))
+        disableConcurrentBuilds()
         timeout(time: 30, unit: 'MINUTES')
     }
 
     stages {
+
+        // -----------------------------------------------------------------
+        // FASE 1: COMPILACION BACKEND (agente maven-jdk17)
+        // -----------------------------------------------------------------
+        // El agente corre sobre JDK 21 (el de la imagen), pero el backend
+        // se compila con JDK 17: Maven lo selecciona via el toolchains.xml
+        // que trae la imagen (maven-toolchains-plugin en el pom). Por eso
+        // se pasa "-t /opt/toolchains/toolchains.xml".
+        // -----------------------------------------------------------------
         stage('Construccion Backend (Maven)') {
             agent { label 'maven-jdk17' }
             steps {
                 configFileProvider([configFile(fileId: 'maven-settings-modern',
                                                 variable: 'MAVEN_SETTINGS')]) {
                     sh '''
-                        cd backend
-                        mvn -s "$MAVEN_SETTINGS" \
-                            -t /opt/toolchains/toolchains.xml \
-                            -Dmaven.repo.local=/cache/.m2/repository \
-                            -B -ntp clean package
+                        set -euo pipefail
+                        mkdir -p /cache/.m2
+                        if [ -f backend/pom.xml ]; then
+                            cd backend
+                            echo "JDK del agente (runtime): $(java -version 2>&1 | head -n1)"
+                            mvn -s "$MAVEN_SETTINGS" \
+                                -t /opt/toolchains/toolchains.xml \
+                                -Dmaven.repo.local=/cache/.m2/repository \
+                                -B -ntp \
+                                clean package
+                        else
+                            echo "AVISO: backend/pom.xml no encontrado, saltando build"
+                        fi
                     '''
                 }
             }
         }
 
+        // -----------------------------------------------------------------
+        // FASE 2: COMPILACION FRONTEND (agente node20)
+        // -----------------------------------------------------------------
         stage('Construccion Frontend (Node)') {
             agent { label 'node20' }
             steps {
                 configFileProvider([configFile(fileId: 'npmrc-frontend',
                                                 variable: 'NPMRC_FILE')]) {
                     sh '''
+                        set -euo pipefail
+                        mkdir -p /cache/.npm
                         export NPM_CONFIG_USERCONFIG="$NPMRC_FILE"
                         npm config set cache /cache/.npm
-                        cd frontend
-                        npm install
-                        npm run build
+                        if [ -f frontend/package.json ]; then
+                            cd frontend
+                            npm install
+                            npm run build
+                        else
+                            echo "AVISO: frontend/package.json no encontrado, saltando build"
+                        fi
                     '''
                 }
             }
         }
 
+        // -----------------------------------------------------------------
+        // FASE 3: EMPAQUETADO IMAGEN BACKEND (agente podman-build)
+        // -----------------------------------------------------------------
         stage('Empaquetar Imagen Backend') {
             agent { label 'podman-build' }
             steps {
-                sh 'podman build --format docker -t reference-backend:latest -f backend/Dockerfile .'
+                sh '''
+                    set -euo pipefail
+                    if [ -f backend/Dockerfile ]; then
+                        podman build --format docker \
+                                     -t reference-backend:latest \
+                                     -f backend/Dockerfile .
+                    else
+                        echo "AVISO: backend/Dockerfile no encontrado, saltando build"
+                    fi
+                '''
             }
         }
 
+        // -----------------------------------------------------------------
+        // FASE 4: EMPAQUETADO IMAGEN FRONTEND (agente podman-build)
+        // -----------------------------------------------------------------
         stage('Empaquetar Imagen Frontend') {
             agent { label 'podman-build' }
             steps {
-                sh 'podman build --format docker -t reference-frontend:latest -f frontend/Dockerfile .'
+                sh '''
+                    set -euo pipefail
+                    if [ -f frontend/Dockerfile ]; then
+                        podman build --format docker \
+                                     -t reference-frontend:latest \
+                                     -f frontend/Dockerfile .
+                    else
+                        echo "AVISO: frontend/Dockerfile no encontrado, saltando build"
+                    fi
+                '''
             }
         }
 
+        // -----------------------------------------------------------------
+        // FASE 5: CONSUMO DE SECRETS + HERRAMIENTAS KUBERNETES
+        // -----------------------------------------------------------------
+        // Ejemplo de buenas practicas en el propio pipeline:
+        //   1) consumir Podman Secrets SIN pasarlos por argumentos: el
+        //      motor los monta como ficheros en /run/secrets/<nombre>
+        //      dentro del contenedor. El laboratorio crea tres secrets
+        //      de ejemplo, uno por cada driver disponible
+        //      (file / pass / shell), que se iteran a continuacion;
+        //   2) inyectar un kubeconfig via Config File Provider (no se
+        //      hornea en la imagen) y exportarlo como KUBECONFIG para
+        //      kubectl/kubectx/kubens.
         stage('Secrets y Kubernetes') {
             agent { label 'podman-build' }
             steps {
                 configFileProvider([configFile(fileId: 'kubeconfig-demo',
                                                 variable: 'KUBECONFIG')]) {
                     sh '''
-                        podman run --rm --secret api_token_prod_file \
-                            docker.io/library/alpine:3.20 \
-                            sh -c 'cat /run/secrets/api_token_prod_file'
-                        kubectl config get-contexts
-                        kubectx
+                        set -euo pipefail
+
+                        echo "--- Secrets en el store rootful del podman-host ---"
+                        podman secret ls || true
+
+                        echo "--- Consumo de los Podman Secrets del laboratorio ---"
+                        # Los 3 secrets se crean en la Fase 5 del playbook
+                        # (Podman Secrets a nivel de sistema, rootful).
+                        # El motor los monta como ficheros en
+                        # /run/secrets/<nombre> dentro del contenedor.
+                        for SEC in api_token_prod_file api_token_prod_pass api_token_prod_shell; do
+                            if podman secret inspect "$SEC" >/dev/null 2>&1; then
+                                echo "Consumiendo $SEC:"
+                                podman run --rm --secret "$SEC" \
+                                    docker.io/library/alpine:3.20 \
+                                    sh -c "echo \"  /run/secrets/$SEC =>\"; cat /run/secrets/$SEC"
+                            else
+                                echo "AVISO: secret $SEC no encontrado, saltando demo"
+                            fi
+                        done
+
+                        echo "--- kubeconfig inyectado (kubectl/kubectx/kubens) ---"
+                        kubectl config get-contexts || true
+                        echo "contexto actual: $(kubectl config current-context 2>/dev/null || echo '(sin cluster real)')"
+                        kubectx 2>/dev/null || true
                     '''
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline completado correctamente en build #${env.BUILD_NUMBER}"
+        }
+        failure {
+            echo "Pipeline FALLO en build #${env.BUILD_NUMBER}. Revisa los logs."
         }
     }
 }
 ```
 
 Notas sobre el diseño:
-- El user del contenedor, los mounts, el socket y las variables de entorno se
-  definen en la **plantilla**, no en el pipeline.
+
+- El usuario del contenedor, los mounts, el socket y las variables de
+  entorno se definen en la **plantilla**, no en el pipeline.
 - El workspace se comparte porque las tres plantillas montan el mismo
   directorio del host.
 - El backend se compila con JDK 17 mediante Maven Toolchains (sección 5.3).
+- La Fase 5 demuestra el consumo de los tres Podman Secrets del laboratorio
+  y la inyección del *kubeconfig* mediante Config File Provider (sección 9.3
+  para el detalle de los secrets).
 
-### 10.1 Consumo de secrets y kubeconfig
+### 11.1 Consumo de secrets y kubeconfig
 
-La última fase ilustra dos buenas prácticas:
+La Fase 5 del pipeline anterior ilustra dos buenas prácticas:
 
-- **Secrets.** Los Podman Secrets residen en el store rootful del `podman-host`;
-  como el agente monta su socket, `podman run --secret` los ve. El pipeline no
-  recibe el valor: el motor lo monta como fichero.
+- **Secrets.** Los Podman Secrets residen en el store rootful del
+  `podman-cloud-host` (sección 9.1); como el agente `podman-build` monta el
+  socket rootful, `podman run --secret` los ve y los monta como fichero
+  (`/run/secrets/<nombre>`). El pipeline **no** recibe el valor: el motor lo
+  inyecta y lo destruye de memoria al terminar. Los nombres por defecto
+  (`api_token_prod_file`, `api_token_prod_pass`, `api_token_prod_shell`)
+  se iteran en el bucle para mostrar los tres drivers disponibles.
 - **kubeconfig.** Se define una sola vez como *Managed Config File*
-  (`configFileProvider`) y el pipeline lo recibe como variable `KUBECONFIG`.
-  Rotar credenciales del clúster no obliga a reconstruir la imagen del agente.
-  El `kubeconfig-demo` del laboratorio es un ejemplo sin credenciales reales;
-  debe sustituirse por el del clúster correspondiente (o crear un *Secret file*
-  con el kubeconfig real y ajustar el `fileId`).
+  (`configFileProvider`) y el pipeline lo recibe como variable
+  `KUBECONFIG`. Rotar credenciales del clúster no obliga a reconstruir la
+  imagen del agente. El `kubeconfig-demo` del laboratorio es un ejemplo sin
+  credenciales reales; se sustituye por el del clúster correspondiente (o se
+  crea un *Secret file* con el kubeconfig real y se ajusta el `fileId`).
 
 ---
 
-## 11. Ventajas, inconvenientes y criterios de elección
+## 12. Ventajas, inconvenientes y criterios de elección
 
 ### Podman-Cloud — ventajas
 
@@ -849,7 +1077,7 @@ La última fase ilustra dos buenas prácticas:
 
 ---
 
-## 12. Checklist de implantación del modelo Podman-Cloud
+## 13. Checklist de implantación del modelo Podman-Cloud
 
 1. **Exponer la API de Podman de forma segura**: mTLS (o túnel SSH). En este
    laboratorio: PKI propia + `podman-tcp.service` en `:2376` (ADR-0005).
@@ -880,7 +1108,7 @@ La última fase ilustra dos buenas prácticas:
 
 ---
 
-## 13. Resolución de problemas
+## 14. Resolución de problemas
 
 - **Cambio en `init.groovy.d/` (Cloud, plantillas, pipeline…) y Jenkins no lo
   aplica.** Los scripts `init.groovy.d/` solo se ejecutan al arrancar Jenkins.
@@ -941,7 +1169,7 @@ La última fase ilustra dos buenas prácticas:
 
 ---
 
-## 14. Referencias
+## 15. Referencias
 
 - Plugin Docker (Cloud): https://plugins.jenkins.io/docker-plugin/ ·
   https://github.com/jenkinsci/docker-plugin

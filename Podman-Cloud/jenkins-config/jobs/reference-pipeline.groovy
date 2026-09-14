@@ -128,9 +128,12 @@ pipeline {
         // -----------------------------------------------------------------
         // FASE 5: CONSUMO DE SECRETS + HERRAMIENTAS KUBERNETES
         // -----------------------------------------------------------------
-        // Ejemplo de dos buenas practicas en el propio pipeline:
-        //   1) consumir un Podman Secret SIN pasarlo por argumentos: el
-        //      motor lo monta como fichero en /run/secrets/<nombre>;
+        // Ejemplo de buenas practicas en el propio pipeline:
+        //   1) consumir Podman Secrets SIN pasarlos por argumentos: el
+        //      motor los monta como ficheros en /run/secrets/<nombre>
+        //      dentro del contenedor. El laboratorio crea tres secrets
+        //      de ejemplo, uno por cada driver disponible
+        //      (file / pass / shell), que se iteran a continuacion;
         //   2) inyectar un kubeconfig via Config File Provider (no se
         //      hornea en la imagen) y exportarlo como KUBECONFIG para
         //      kubectl/kubectx/kubens.
@@ -145,14 +148,21 @@ pipeline {
                         echo "--- Secrets en el store rootful del podman-host ---"
                         podman secret ls || true
 
-                        echo "--- Consumo de un secret en un contenedor efimero ---"
-                        if podman secret inspect api_token_prod_file >/dev/null 2>&1; then
-                            podman run --rm --secret api_token_prod_file \
-                                docker.io/library/alpine:3.20 \
-                                sh -c 'echo "leido desde /run/secrets:"; cat /run/secrets/api_token_prod_file'
-                        else
-                            echo "AVISO: secret api_token_prod_file no encontrado, saltando demo"
-                        fi
+                        echo "--- Consumo de los Podman Secrets del laboratorio ---"
+                        # Los 3 secrets se crean en la Fase 5 del playbook
+                        # (Podman Secrets a nivel de sistema, rootful).
+                        # El motor los monta como ficheros en
+                        # /run/secrets/<nombre> dentro del contenedor.
+                        for SEC in api_token_prod_file api_token_prod_pass api_token_prod_shell; do
+                            if podman secret inspect "$SEC" >/dev/null 2>&1; then
+                                echo "Consumiendo $SEC:"
+                                podman run --rm --secret "$SEC" \
+                                    docker.io/library/alpine:3.20 \
+                                    sh -c "echo \"  /run/secrets/$SEC =>\"; cat /run/secrets/$SEC"
+                            else
+                                echo "AVISO: secret $SEC no encontrado, saltando demo"
+                            fi
+                        done
 
                         echo "--- kubeconfig inyectado (kubectl/kubectx/kubens) ---"
                         kubectl config get-contexts || true
